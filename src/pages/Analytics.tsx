@@ -1,7 +1,16 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   TrendingUp,
   TrendingDown,
@@ -16,6 +25,9 @@ import {
 } from "lucide-react";
 
 export default function Analytics() {
+  const [timeRange, setTimeRange] = useState("7d");
+  const [selectedMetric, setSelectedMetric] = useState("tvl");
+
   // Mock data for analytics
   const protocolStats = {
     tvl: "$47.2M",
@@ -26,7 +38,119 @@ export default function Analytics() {
     volumeChange: "+23.1%",
     avgAPY: "42.3%",
     apyChange: "-2.1%",
+    totalFees: "$2.8M",
+    feesChange: "+15.7%",
+    activePools: 12,
+    poolsChange: "+2",
   };
+
+  // Historical data for charts
+  const historicalData = {
+    tvl: [
+      { date: "2024-01-01", value: 35000000 },
+      { date: "2024-01-02", value: 36500000 },
+      { date: "2024-01-03", value: 38000000 },
+      { date: "2024-01-04", value: 39500000 },
+      { date: "2024-01-05", value: 41000000 },
+      { date: "2024-01-06", value: 42500000 },
+      { date: "2024-01-07", value: 47200000 },
+    ],
+    volume: [
+      { date: "2024-01-01", value: 8500000 },
+      { date: "2024-01-02", value: 9200000 },
+      { date: "2024-01-03", value: 10800000 },
+      { date: "2024-01-04", value: 12500000 },
+      { date: "2024-01-05", value: 11800000 },
+      { date: "2024-01-06", value: 13200000 },
+      { date: "2024-01-07", value: 15400000 },
+    ],
+    users: [
+      { date: "2024-01-01", value: 1150 },
+      { date: "2024-01-02", value: 1180 },
+      { date: "2024-01-03", value: 1205 },
+      { date: "2024-01-04", value: 1230 },
+      { date: "2024-01-05", value: 1250 },
+      { date: "2024-01-06", value: 1245 },
+      { date: "2024-01-07", value: 1247 },
+    ],
+  };
+
+  // Performance metrics
+  const performanceMetrics = [
+    {
+      name: "Total Return",
+      value: "342.7%",
+      change: "+12.3%",
+      period: "1Y",
+      trend: "up",
+    },
+    {
+      name: "Sharpe Ratio",
+      value: "2.84",
+      change: "+0.15",
+      period: "1Y",
+      trend: "up",
+    },
+    {
+      name: "Max Drawdown",
+      value: "-8.2%",
+      change: "-1.1%",
+      period: "1Y",
+      trend: "down",
+    },
+    {
+      name: "Volatility",
+      value: "24.3%",
+      change: "-2.1%",
+      period: "1Y",
+      trend: "down",
+    },
+  ];
+
+  // Token distribution
+  const tokenDistribution = [
+    { token: "rBTC", percentage: 45.2, value: "$21.3M", change: "+5.2%" },
+    { token: "USDT", percentage: 28.7, value: "$13.5M", change: "+2.1%" },
+    { token: "VINT", percentage: 15.8, value: "$7.4M", change: "+8.9%" },
+    { token: "ETH", percentage: 6.3, value: "$3.0M", change: "-1.2%" },
+    { token: "Others", percentage: 4.0, value: "$1.9M", change: "+0.8%" },
+  ];
+
+  // Protocol comparison
+  const protocolComparison = [
+    {
+      protocol: "Vintara",
+      tvl: "$47.2M",
+      apy: "42.3%",
+      users: "1,247",
+      volume: "$125.4M",
+      fees: "$2.8M",
+    },
+    {
+      protocol: "Compound",
+      tvl: "$2.1B",
+      apy: "8.2%",
+      users: "45,000",
+      volume: "$890M",
+      fees: "$12.5M",
+    },
+    {
+      protocol: "Aave",
+      tvl: "$6.8B",
+      apy: "12.5%",
+      users: "78,000",
+      volume: "$1.2B",
+      fees: "$18.7M",
+    },
+    {
+      protocol: "Uniswap",
+      tvl: "$4.2B",
+      apy: "15.8%",
+      users: "125,000",
+      volume: "$2.8B",
+      fees: "$42.1M",
+    },
+  ];
 
   const yieldMetrics = [
     { name: "Yield Vault", tvl: "$18.5M", apy: "15.2%", change: "+5.2%" },
@@ -133,6 +257,35 @@ export default function Analytics() {
         </div>
       </div>
 
+      {/* Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="24h">24H</SelectItem>
+              <SelectItem value="7d">7D</SelectItem>
+              <SelectItem value="30d">30D</SelectItem>
+              <SelectItem value="90d">90D</SelectItem>
+              <SelectItem value="1y">1Y</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={selectedMetric} onValueChange={setSelectedMetric}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tvl">TVL</SelectItem>
+              <SelectItem value="volume">Volume</SelectItem>
+              <SelectItem value="users">Users</SelectItem>
+              <SelectItem value="fees">Fees</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* Protocol Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="p-6 card-gradient border-border/40">
@@ -201,6 +354,134 @@ export default function Analytics() {
           </div>
         </Card>
       </div>
+
+      {/* Performance Metrics */}
+      <Card className="p-6 card-gradient border-border/40">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Performance Metrics</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {performanceMetrics.map((metric, index) => (
+              <div key={index} className="p-4 rounded-lg bg-secondary/30">
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    {metric.name}
+                  </div>
+                  <div className="text-xl font-bold">{metric.value}</div>
+                  <div className="flex items-center space-x-1">
+                    {metric.trend === "up" ? (
+                      <TrendingUp className="h-3 w-3 text-success" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 text-destructive" />
+                    )}
+                    <span
+                      className={`text-xs ${
+                        metric.trend === "up"
+                          ? "text-success"
+                          : "text-destructive"
+                      }`}
+                    >
+                      {metric.change}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({metric.period})
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* Token Distribution */}
+      <Card className="p-6 card-gradient border-border/40">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Token Distribution</h2>
+          <div className="space-y-3">
+            {tokenDistribution.map((token, index) => (
+              <div key={index} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{token.token}</span>
+                  <div className="text-right">
+                    <div className="font-medium">{token.value}</div>
+                    <div
+                      className={`text-xs ${
+                        token.change.startsWith("+")
+                          ? "text-success"
+                          : "text-destructive"
+                      }`}
+                    >
+                      {token.change}
+                    </div>
+                  </div>
+                </div>
+                <Progress value={token.percentage} className="h-2" />
+                <div className="text-xs text-muted-foreground">
+                  {token.percentage.toFixed(1)}% of total TVL
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* Protocol Comparison */}
+      <Card className="p-6 card-gradient border-border/40">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Protocol Comparison</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-muted-foreground border-b border-border/40">
+                  <th className="text-left py-2">Protocol</th>
+                  <th className="text-right py-2">TVL</th>
+                  <th className="text-right py-2">APY</th>
+                  <th className="text-right py-2">Users</th>
+                  <th className="text-right py-2">Volume</th>
+                  <th className="text-right py-2">Fees</th>
+                </tr>
+              </thead>
+              <tbody>
+                {protocolComparison.map((protocol, index) => (
+                  <tr
+                    key={index}
+                    className="border-b border-border/20 last:border-b-0"
+                  >
+                    <td className="py-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{protocol.protocol}</span>
+                        {protocol.protocol === "Vintara" && (
+                          <Badge
+                            variant="outline"
+                            className="text-bitcoin border-bitcoin"
+                          >
+                            Our Protocol
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="text-right py-3">{protocol.tvl}</td>
+                    <td className="text-right py-3">
+                      <span
+                        className={
+                          protocol.protocol === "Vintara"
+                            ? "text-bitcoin font-medium"
+                            : ""
+                        }
+                      >
+                        {protocol.apy}
+                      </span>
+                    </td>
+                    <td className="text-right py-3">{protocol.users}</td>
+                    <td className="text-right py-3">{protocol.volume}</td>
+                    <td className="text-right py-3">{protocol.fees}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Yield Metrics */}

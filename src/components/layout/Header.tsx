@@ -11,6 +11,9 @@ const navigation = [
   { name: "Lending", href: "/lending" },
   { name: "Yield", href: "/yield" },
   { name: "Analytics", href: "/analytics" },
+  { name: "Governance", href: "/governance" },
+  { name: "Bridge", href: "/bridge" },
+  { name: "Institutional", href: "/institutional" },
 ];
 
 export function Header() {

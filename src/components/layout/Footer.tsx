@@ -9,11 +9,11 @@ export function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="h-6 w-6 rounded-lg bg-gradient-to-r from-bitcoin to-bitcoin-light flex items-center justify-center">
-                <span className="text-xs font-bold text-primary-foreground">
-                  V
-                </span>
-              </div>
+              <img
+                src="/final-logo.svg"
+                alt="Vintara Logo"
+                className="h-6 w-auto"
+              />
               <span className="text-lg font-bold bg-gradient-to-r from-bitcoin to-bitcoin-light bg-clip-text text-transparent">
                 Vintara
               </span>

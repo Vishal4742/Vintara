@@ -26,7 +26,7 @@ export function Header() {
         {/* Logo */}
         <Link to="/" className="flex items-center space-x-1">
           <img
-            src="/assets/Vintara website-svg.svg"
+            src="/final-logo.svg"
             alt="Vintara Logo"
             className="h-10 w-auto sm:h-12 md:h-14"
           />

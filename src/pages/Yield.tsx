@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { YieldOptimizer } from "@/components/ui/YieldOptimizer";
+import { WalletInfo } from "@/components/ui/WalletInfo";
+import { ConnectWallet } from "@/components/ui/ConnectWallet";
+import { useWallet } from "@/hooks/useWallet";
 import {
   TrendingUp,
   Clock,
@@ -21,6 +25,7 @@ import {
   Star,
   Target,
   Activity,
+  Wallet,
 } from "lucide-react";
 
 export default function Yield() {
@@ -28,6 +33,9 @@ export default function Yield() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
   const [selectedPool, setSelectedPool] = useState<number | null>(null);
+  
+  // Wallet integration
+  const { isConnected, formattedAddress, formattedBalance, chain } = useWallet();
 
   // Enhanced pool data with more details
   const pools = [
@@ -184,14 +192,36 @@ export default function Yield() {
 
   return (
     <div className="container py-8 space-y-8">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <h1 className="text-3xl font-bold">Yield Farming</h1>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          Stake your tokens and LP positions to earn rewards from our high-yield
-          farming pools.
-        </p>
+      {/* Header with Wallet Integration */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+        <div className="text-center lg:text-left space-y-4">
+          <h1 className="text-3xl font-bold">Yield Farming</h1>
+          <p className="text-muted-foreground max-w-2xl">
+            Stake your tokens and LP positions to earn rewards from our high-yield farming pools.
+          </p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          {isConnected ? (
+            <WalletInfo 
+              showBalance={true} 
+              showNetwork={true} 
+              className="min-w-[280px]" 
+            />
+          ) : (
+            <ConnectWallet />
+          )}
+        </div>
       </div>
+
+      {!isConnected && (
+        <Alert>
+          <Wallet className="h-4 w-4" />
+          <AlertDescription>
+            Connect your wallet to participate in yield farming and track your positions.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Enhanced Stats with Real-time Data */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

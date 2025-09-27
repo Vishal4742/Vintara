@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAccount, useBalance, useDisconnect } from "wagmi";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { RiskManager } from "@/components/ui/RiskManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   TrendingUp,
   DollarSign,
@@ -18,11 +20,37 @@ import {
   PieChart,
   Clock,
   Shield,
+  Copy,
+  CheckCircle,
+  Info,
 } from "lucide-react";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [copiedAddress, setCopiedAddress] = useState(false);
+  
+  // Wagmi hooks for wallet data
+  const { address, isConnected, chain } = useAccount();
+  const { data: balance, isLoading: balanceLoading } = useBalance({
+    address: address,
+  });
+  const { disconnect } = useDisconnect();
 
+  // Helper function to copy address
+  const copyAddress = async () => {
+    if (address) {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(true);
+      setTimeout(() => setCopiedAddress(false), 2000);
+    }
+  };
+
+  // Helper function to format address
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
+  // Mock transactions (in real app, fetch based on wallet address)
   const transactions = [
     {
       id: 1,
@@ -62,18 +90,94 @@ export default function Dashboard() {
     },
   ];
 
+  // If wallet is not connected, show connect wallet prompt
+  if (!isConnected) {
+    return (
+      <div className="container py-8">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+          <div className="space-y-4">
+            <Wallet className="h-16 w-16 mx-auto text-muted-foreground" />
+            <h1 className="text-3xl font-bold">Connect Your Wallet</h1>
+            <p className="text-muted-foreground max-w-md">
+              Connect your wallet to view your DeFi portfolio, track your yields, and manage your Bitcoin positions.
+            </p>
+          </div>
+          <ConnectWallet />
+          <Alert className="max-w-md">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Make sure you're connected to the Rootstock network to access all features.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-8 space-y-8">
-      {/* Header */}
+      {/* Header with Wallet Info */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
+        <div className="space-y-2">
           <h1 className="text-3xl font-bold">Your DeFi Portfolio</h1>
-          <p className="text-muted-foreground">
-            Overview of your Bitcoin yield and DeFi positions
-          </p>
+          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2">
+              <span>Connected:</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-1 font-mono text-xs"
+                onClick={copyAddress}
+              >
+                {formatAddress(address!)}
+                {copiedAddress ? (
+                  <CheckCircle className="h-3 w-3 ml-1 text-green-500" />
+                ) : (
+                  <Copy className="h-3 w-3 ml-1" />
+                )}
+              </Button>
+            </div>
+            {chain && (
+              <div className="flex items-center space-x-2">
+                <span>Network:</span>
+                <Badge variant="outline" className="text-xs">
+                  {chain.name}
+                </Badge>
+              </div>
+            )}
+          </div>
         </div>
-        <ConnectWallet />
+        <div className="flex items-center space-x-3">
+          <ConnectWallet />
+        </div>
       </div>
+
+      {/* Wallet Balance Card */}
+      <Card className="p-6 bg-gradient-to-r from-bitcoin/5 to-bitcoin-light/5 border-bitcoin/20">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold">Wallet Balance</h2>
+            <div className="space-y-1">
+              {balanceLoading ? (
+                <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+              ) : (
+                <div className="text-2xl font-bold text-bitcoin">
+                  {balance ? `${Number(balance.formatted).toFixed(4)} ${balance.symbol}` : '0 RBTC'}
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Native balance on {chain?.name || 'Rootstock'}
+              </p>
+            </div>
+          </div>
+          <div className="text-right space-y-2">
+            <div className="text-sm text-muted-foreground">Est. USD Value</div>
+            <div className="text-xl font-semibold">
+              {balance ? `$${(Number(balance.formatted) * 43000).toFixed(2)}` : '$0.00'}
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Dashboard Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -83,15 +187,22 @@ export default function Dashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8">
+          {/* Disclaimer for Demo Data */}
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Portfolio metrics below are demo data. In a live environment, these would be fetched based on your wallet address: <code className="bg-muted px-1 rounded text-xs">{formatAddress(address!)}</code>
+            </AlertDescription>
+          </Alert>
+
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
-              title="Portfolio Balance"
-              value="$4,832.50"
-              subtitle="Total value"
-              icon={<DollarSign className="h-5 w-5" />}
-              trend="up"
-              trendValue="8.5%"
+              title="Wallet Balance"
+              value={balance ? `${Number(balance.formatted).toFixed(4)} ${balance.symbol}` : '0 RBTC'}
+              subtitle="Native balance"
+              icon={<Wallet className="h-5 w-5" />}
+              trend="neutral"
             />
             <StatCard
               title="Active Liquidity"

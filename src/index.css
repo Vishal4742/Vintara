@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Vintara DeFi Design System - Bitcoin-inspired dark theme */
+
+@layer base {
+  :root {
+    /* Dark theme base colors */
+    --background: 225 25% 8%;
+    --foreground: 210 40% 95%;
+
+    --card: 225 20% 11%;
+    --card-foreground: 210 40% 95%;
+
+    --popover: 225 20% 11%;
+    --popover-foreground: 210 40% 95%;
+
+    /* Bitcoin orange primary */
+    --primary: 25 95% 55%;
+    --primary-foreground: 225 25% 8%;
+
+    /* Subtle secondary */
+    --secondary: 225 15% 15%;
+    --secondary-foreground: 210 40% 95%;
+
+    --muted: 225 15% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 240 80% 65%;
+    --accent-foreground: 225 25% 8%;
+
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 210 40% 95%;
+
+    --border: 225 15% 20%;
+    --input: 225 15% 15%;
+    --ring: 25 95% 55%;
+
+    --radius: 12px;
+
+    /* Custom design tokens */
+    --bitcoin-orange: 25 95% 55%;
+    --bitcoin-orange-light: 35 90% 65%;
+    --deep-blue: 225 50% 12%;
+    --card-elevated: 225 20% 14%;
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--bitcoin-orange)) 0%, hsl(var(--bitcoin-orange-light)) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card-elevated)) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--deep-blue)) 100%);
+    
+    /* Shadows */
+    --shadow-card: 0 4px 32px -8px hsl(var(--bitcoin-orange) / 0.1);
+    --shadow-elevated: 0 8px 40px -12px hsl(var(--bitcoin-orange) / 0.15);
+    --shadow-glow: 0 0 40px hsl(var(--bitcoin-orange) / 0.2);
+
+    --radius: 12px;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Dark theme is default - no overrides needed */
+  .light {
+    /* Optional light theme overrides if needed */
+    --background: 210 40% 98%;
+    --foreground: 225 25% 8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Card variants */
+  .card-gradient {
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
+  }
+  
+  .card-elevated {
+    background: hsl(var(--card-elevated));
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Button variants */
+  .btn-bitcoin {
+    background: var(--gradient-primary);
+    color: hsl(var(--primary-foreground));
+    box-shadow: var(--shadow-glow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .btn-bitcoin:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Hero gradient background */
+  .hero-gradient {
+    background: var(--gradient-hero);
+  }
+
+  /* Animations */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Glass effect */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}

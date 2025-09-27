@@ -6,8 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "./PythOracle.sol";
+import "./ChainlinkOracle.sol";
 
 /**
  * @title YieldVault
@@ -16,7 +15,6 @@ import "./PythOracle.sol";
  */
 contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -24,7 +22,7 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
 
     // State variables
     IERC20 public immutable rBTC;
-    PythOracle public immutable pythOracle;
+    ChainlinkOracle public immutable chainlinkOracle;
     uint256 public totalAssets;
     uint256 public totalSupply;
     uint256 public lastUpdateTime;
@@ -53,9 +51,9 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
     error Unauthorized();
     error TransferFailed();
 
-    constructor(address _rBTC, address _pythOracle) {
+    constructor(address _rBTC, address _chainlinkOracle) {
         rBTC = IERC20(_rBTC);
-        pythOracle = PythOracle(_pythOracle);
+        chainlinkOracle = ChainlinkOracle(_chainlinkOracle);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
         _grantRole(STRATEGY_ROLE, msg.sender);
@@ -78,12 +76,12 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
         // Calculate shares based on current exchange rate
         shares = totalSupply == 0
             ? amount
-            : amount.mul(totalSupply).div(totalAssets);
+            : (amount * totalSupply) / totalAssets;
 
         // Update user balance and total supply
-        balances[msg.sender] = balances[msg.sender].add(shares);
-        totalSupply = totalSupply.add(shares);
-        totalAssets = totalAssets.add(amount);
+        balances[msg.sender] = balances[msg.sender] + shares;
+        totalSupply = totalSupply + shares;
+        totalAssets = totalAssets + amount;
 
         // Transfer rBTC from user
         rBTC.safeTransferFrom(msg.sender, address(this), amount);
@@ -104,12 +102,12 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
             revert InvalidAmount();
 
         // Calculate rBTC amount based on current exchange rate
-        amount = shares.mul(totalAssets).div(totalSupply);
+        amount = (shares * totalAssets) / totalSupply;
 
         // Update balances
-        balances[msg.sender] = balances[msg.sender].sub(shares);
-        totalSupply = totalSupply.sub(shares);
-        totalAssets = totalAssets.sub(amount);
+        balances[msg.sender] = balances[msg.sender] - shares;
+        totalSupply = totalSupply - shares;
+        totalAssets = totalAssets - amount;
 
         // Transfer rBTC to user
         rBTC.safeTransfer(msg.sender, amount);
@@ -130,10 +128,10 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
         // Mint new shares for yield
         uint256 newShares = totalSupply == 0
             ? yield
-            : yield.mul(totalSupply).div(totalAssets);
-        balances[msg.sender] = balances[msg.sender].add(newShares);
-        totalSupply = totalSupply.add(newShares);
-        totalAssets = totalAssets.add(yield);
+            : (yield * totalSupply) / totalAssets;
+        balances[msg.sender] = balances[msg.sender] + newShares;
+        totalSupply = totalSupply + newShares;
+        totalAssets = totalAssets + yield;
 
         emit YieldClaimed(msg.sender, yield);
     }
@@ -146,8 +144,8 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
     function calculateYield(address user) public view returns (uint256 yield) {
         if (balances[user] == 0) return 0;
 
-        uint256 timeElapsed = block.timestamp.sub(lastClaimTime[user]);
-        uint256 userAssets = balances[user].mul(totalAssets).div(totalSupply);
+        uint256 timeElapsed = block.timestamp - lastClaimTime[user];
+        uint256 userAssets = (balances[user] * totalAssets) / totalSupply;
 
         // Use dynamic yield rate if available, otherwise use base rate
         uint256 currentYieldRate = dynamicYieldRate > 0
@@ -155,11 +153,9 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
             : yieldRate;
 
         // Calculate yield: (assets * rate * time) / (365 days * 10000)
-        yield = userAssets
-            .mul(currentYieldRate)
-            .mul(timeElapsed)
-            .div(365 days)
-            .div(10000);
+        yield =
+            (userAssets * currentYieldRate * timeElapsed) /
+            (365 days * 10000);
     }
 
     /**
@@ -170,9 +166,9 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
     function getTotalBalance(
         address user
     ) external view returns (uint256 total) {
-        uint256 baseBalance = balances[user].mul(totalAssets).div(totalSupply);
+        uint256 baseBalance = (balances[user] * totalAssets) / totalSupply;
         uint256 pendingYield = calculateYield(user);
-        return baseBalance.add(pendingYield);
+        return baseBalance + pendingYield;
     }
 
     /**
@@ -203,9 +199,9 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
         external
         onlyRole(MANAGER_ROLE)
     {
-        try pythOracle.getRBTCPrice() returns (int64 rbtcPrice) {
+        try chainlinkOracle.getRBTCPrice() returns (int256 rbtcPrice) {
             // Convert to uint256 for calculations
-            uint256 price = uint256(uint64(rbtcPrice));
+            uint256 price = uint256(rbtcPrice);
 
             // Base yield rate
             uint256 baseRate = yieldRate;
@@ -225,7 +221,7 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
             }
 
             // Calculate new dynamic rate
-            uint256 newDynamicRate = baseRate.add(priceAdjustment);
+            uint256 newDynamicRate = baseRate + priceAdjustment;
 
             // Ensure rate is within reasonable bounds (5% to 25%)
             if (newDynamicRate < 500) newDynamicRate = 500;
@@ -257,13 +253,13 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
 
         // Execute strategy (this would call the strategy contract)
         // For now, we'll simulate a profit
-        uint256 profit = amount.mul(100).div(10000); // 1% profit simulation
+        uint256 profit = (amount * 100) / 10000; // 1% profit simulation
 
         // Transfer profit back
-        rBTC.safeTransferFrom(strategy, address(this), amount.add(profit));
+        rBTC.safeTransferFrom(strategy, address(this), amount + profit);
 
         // Update total assets
-        totalAssets = totalAssets.add(profit);
+        totalAssets = totalAssets + profit;
 
         emit StrategyExecuted(strategy, amount, profit);
     }

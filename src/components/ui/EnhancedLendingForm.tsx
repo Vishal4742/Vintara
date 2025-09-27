@@ -21,6 +21,7 @@ import { ENSInput, ENSAddressDisplay } from "./ENSInput";
 import { PythPriceFeed } from "./PythPriceFeed";
 import { useENS } from "@/hooks/useENS";
 import { cn } from "@/lib/utils";
+import { CONTRACTS } from "@/config/contracts";
 
 interface LendingFormData {
   recipient: string;

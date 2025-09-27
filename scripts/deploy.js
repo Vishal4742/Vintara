@@ -21,38 +21,41 @@ async function main() {
   await mockToken.waitForDeployment();
   console.log("MockToken deployed to:", await mockToken.getAddress());
 
-  // Deploy PyTH Oracle
-  console.log("\n🔮 Deploying PyTH Oracle...");
-  const PythOracle = await ethers.getContractFactory("PythOracle");
-  const pythOracle = await PythOracle.deploy();
-  await pythOracle.waitForDeployment();
-  console.log("PyTH Oracle deployed to:", await pythOracle.getAddress());
+  // Deploy Chainlink Oracle
+  console.log("\n🔗 Deploying Chainlink Oracle...");
+  const ChainlinkOracle = await ethers.getContractFactory("ChainlinkOracle");
+  const chainlinkOracle = await ChainlinkOracle.deploy();
+  await chainlinkOracle.waitForDeployment();
+  console.log(
+    "Chainlink Oracle deployed to:",
+    await chainlinkOracle.getAddress()
+  );
 
-  // Deploy ENS Resolver
-  console.log("\n🌐 Deploying ENS Resolver...");
-  const ENSResolver = await ethers.getContractFactory("ENSResolver");
-  const ensResolver = await ENSResolver.deploy(ethers.constants.AddressZero); // Mock registry for now
-  await ensResolver.waitForDeployment();
-  console.log("ENS Resolver deployed to:", await ensResolver.getAddress());
+  // Deploy Graph Indexer
+  console.log("\n📊 Deploying Graph Indexer...");
+  const GraphIndexer = await ethers.getContractFactory("GraphIndexer");
+  const graphIndexer = await GraphIndexer.deploy();
+  await graphIndexer.waitForDeployment();
+  console.log("Graph Indexer deployed to:", await graphIndexer.getAddress());
 
-  // Deploy YieldVault (updated with PyTH Oracle integration)
+  // Deploy YieldVault (updated with Chainlink Oracle integration)
   console.log("\n🏦 Deploying YieldVault...");
   const YieldVault = await ethers.getContractFactory("YieldVault");
   const yieldVault = await YieldVault.deploy(
     await mockToken.getAddress(),
-    await pythOracle.getAddress() // PyTH Oracle integration
+    await chainlinkOracle.getAddress() // Chainlink Oracle integration
   );
   await yieldVault.waitForDeployment();
   console.log("YieldVault deployed to:", await yieldVault.getAddress());
 
-  // Deploy LendingProtocol (updated with PyTH Oracle and ENS integration)
+  // Deploy LendingProtocol (updated with Chainlink Oracle and Graph integration)
   console.log("\n💰 Deploying LendingProtocol...");
   const LendingProtocol = await ethers.getContractFactory("LendingProtocol");
   const lendingProtocol = await LendingProtocol.deploy(
     await mockToken.getAddress(), // rBTC token
     await mockToken.getAddress(), // USDT token (using same for simplicity)
-    await pythOracle.getAddress(), // PyTH Oracle
-    await ensResolver.getAddress() // ENS Resolver
+    await chainlinkOracle.getAddress(), // Chainlink Oracle
+    await graphIndexer.getAddress() // Graph Indexer
   );
   await lendingProtocol.waitForDeployment();
   console.log(
@@ -112,28 +115,26 @@ async function main() {
 
   await pythOracle.connect(deployer).updatePrice(
     rbtcPriceId,
-    ethers.BigNumber.from("4500000000000"), // $45,000 in 8 decimals
-    ethers.BigNumber.from("950000000"), // 95% confidence
+    BigInt("4500000000000"), // $45,000 in 8 decimals
+    BigInt("950000000"), // 95% confidence
     -8, // 8 decimal places
     Math.floor(Date.now() / 1000)
   );
 
   await pythOracle.connect(deployer).updatePrice(
     usdtPriceId,
-    ethers.BigNumber.from("100000000"), // $1.00 in 8 decimals
-    ethers.BigNumber.from("980000000"), // 98% confidence
+    BigInt("100000000"), // $1.00 in 8 decimals
+    BigInt("980000000"), // 98% confidence
     -8, // 8 decimal places
     Math.floor(Date.now() / 1000)
   );
   console.log("✅ Set up PyTH Oracle with initial prices");
 
   // Register some ENS names for testing
-  const aliceNameHash = ethers.utils.keccak256(
-    ethers.utils.toUtf8Bytes("alice.vintara.eth")
+  const aliceNameHash = ethers.keccak256(
+    ethers.toUtf8Bytes("alice.vintara.eth")
   );
-  const bobNameHash = ethers.utils.keccak256(
-    ethers.utils.toUtf8Bytes("bob.vintara.eth")
-  );
+  const bobNameHash = ethers.keccak256(ethers.toUtf8Bytes("bob.vintara.eth"));
 
   await ensResolver
     .connect(deployer)

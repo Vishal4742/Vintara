@@ -8,6 +8,24 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+// Math library for square root calculation
+library Math {
+    function sqrt(uint256 x) internal pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+        return y;
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+}
+
 /**
  * @title LiquidityPool
  * @dev Automated Market Maker (AMM) for BitcoinYield on Rootstock
@@ -16,6 +34,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
+    using Math for uint256;
 
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -94,7 +113,7 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
 
         if (_reserve0 == 0 && _reserve1 == 0) {
             // First liquidity provision
-            liquidity = amount0.mul(amount1).sqrt().sub(MINIMUM_LIQUIDITY);
+            liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
             _mint(address(0), MINIMUM_LIQUIDITY); // Permanently lock first liquidity
         } else {
             // Calculate liquidity based on existing reserves
@@ -107,7 +126,7 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
         if (liquidity == 0) revert InsufficientLiquidityMinted();
 
         _mint(to, liquidity);
-        _update(amount0, amount1, _reserve0, _reserve1);
+        _update(_reserve0.add(amount0), _reserve1.add(amount1), _reserve0, _reserve1);
 
         // Transfer tokens from user
         token0.safeTransferFrom(msg.sender, address(this), amount0);
@@ -137,7 +156,7 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
         if (amount0 == 0 || amount1 == 0) revert InsufficientLiquidity();
 
         _burn(msg.sender, liquidity);
-        _update(amount0, amount1, reserve0, reserve1);
+        _update(reserve0.sub(amount0), reserve1.sub(amount1), reserve0, reserve1);
 
         // Transfer tokens to user
         token0.safeTransfer(to, amount0);
@@ -165,51 +184,43 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
         if (amount0Out >= reserve0 || amount1Out >= reserve1)
             revert InsufficientLiquidity();
 
-        uint256 _reserve0 = reserve0;
-        uint256 _reserve1 = reserve1;
-
+        // Store reserves to save gas
+        uint256[2] memory reserves = [reserve0, reserve1];
+        
         // Calculate input amounts
-        uint256 amount0In = amount0Out > 0
-            ? _getAmountIn(amount0Out, _reserve1, _reserve0)
-            : 0;
-        uint256 amount1In = amount1Out > 0
-            ? _getAmountIn(amount1Out, _reserve0, _reserve1)
-            : 0;
+        uint256[2] memory amountsIn = [
+            amount0Out > 0 ? _getAmountIn(amount0Out, reserves[1], reserves[0]) : 0,
+            amount1Out > 0 ? _getAmountIn(amount1Out, reserves[0], reserves[1]) : 0
+        ];
 
-        if (amount0In == 0 && amount1In == 0) revert InsufficientInputAmount();
+        if (amountsIn[0] == 0 && amountsIn[1] == 0) revert InsufficientInputAmount();
 
-        // Calculate fees
-        uint256 fee0 = amount0In.mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
-        uint256 fee1 = amount1In.mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
+        // Update protocol fees
+        protocolFees0 = protocolFees0.add(amountsIn[0].mul(PROTOCOL_FEE).div(FEE_DENOMINATOR));
+        protocolFees1 = protocolFees1.add(amountsIn[1].mul(PROTOCOL_FEE).div(FEE_DENOMINATOR));
 
-        // Update reserves
-        uint256 balance0 = _reserve0.add(amount0In).sub(amount0Out);
-        uint256 balance1 = _reserve1.add(amount1In).sub(amount1Out);
+        // Calculate new balances
+        uint256[2] memory newBalances = [
+            reserves[0].add(amountsIn[0]).sub(amount0Out),
+            reserves[1].add(amountsIn[1]).sub(amount1Out)
+        ];
 
-        // Check K constraint
-        uint256 balance0Adjusted = balance0.mul(10000).sub(fee0);
-        uint256 balance1Adjusted = balance1.mul(10000).sub(fee1);
+        // Check K constraint (simplified)
+        _validateK(reserves, newBalances, amountsIn);
 
-        if (
-            balance0Adjusted.mul(balance1Adjusted) <
-            _reserve0.mul(_reserve1).mul(10000 ** 2)
-        ) {
-            revert InsufficientLiquidity();
-        }
-
-        _update(balance0, balance1, _reserve0, _reserve1);
+        // Transfer input tokens first
+        if (amountsIn[0] > 0)
+            token0.safeTransferFrom(msg.sender, address(this), amountsIn[0]);
+        if (amountsIn[1] > 0)
+            token1.safeTransferFrom(msg.sender, address(this), amountsIn[1]);
 
         // Transfer output tokens
         if (amount0Out > 0) token0.safeTransfer(to, amount0Out);
         if (amount1Out > 0) token1.safeTransfer(to, amount1Out);
 
-        // Transfer input tokens
-        if (amount0In > 0)
-            token0.safeTransferFrom(msg.sender, address(this), amount0In);
-        if (amount1In > 0)
-            token1.safeTransferFrom(msg.sender, address(this), amount1In);
+        _update(newBalances[0], newBalances[1], reserves[0], reserves[1]);
 
-        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+        emit Swap(msg.sender, amountsIn[0], amountsIn[1], amount0Out, amount1Out, to);
     }
 
     /**
@@ -353,6 +364,31 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
     }
 
     /**
+     * @dev Validate K constraint for swaps
+     * @param oldReserves Array of old reserves [reserve0, reserve1]
+     * @param newBalances Array of new balances [balance0, balance1]
+     * @param amountsIn Array of input amounts [amount0In, amount1In]
+     */
+    function _validateK(
+        uint256[2] memory oldReserves,
+        uint256[2] memory newBalances,
+        uint256[2] memory amountsIn
+    ) internal pure {
+        uint256 fee0 = amountsIn[0].mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
+        uint256 fee1 = amountsIn[1].mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
+        
+        uint256 balance0Adjusted = newBalances[0].mul(10000).sub(fee0.mul(10000));
+        uint256 balance1Adjusted = newBalances[1].mul(10000).sub(fee1.mul(10000));
+
+        if (
+            balance0Adjusted.mul(balance1Adjusted) <
+            oldReserves[0].mul(oldReserves[1]).mul(10000).mul(10000)
+        ) {
+            revert InsufficientLiquidity();
+        }
+    }
+
+    /**
      * @dev Emergency pause (only admin)
      */
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -364,19 +400,5 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
      */
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
-    }
-}
-
-// Math library for square root calculation
-library Math {
-    function sqrt(uint256 x) internal pure returns (uint256) {
-        if (x == 0) return 0;
-        uint256 z = (x + 1) / 2;
-        uint256 y = x;
-        while (z < y) {
-            y = z;
-            z = (x / z + z) / 2;
-        }
-        return y;
     }
 }

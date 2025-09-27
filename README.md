@@ -2,7 +2,7 @@
 
 > **One-sentence description**: A comprehensive DeFi protocol that enables users to earn native Bitcoin yield through automated lending, liquidity provision, and yield farming strategies on Rootstock.
 
-## 🎯 Project Overview
+## Project Overview
 
 Vintara is a revolutionary DeFi protocol built on Rootstock (RSK), Bitcoin's longest-running and most secure sidechain. Our protocol enables users to earn native Bitcoin yield through multiple strategies while leveraging Bitcoin's unmatched security and stability.
 
@@ -15,7 +15,7 @@ Vintara is a revolutionary DeFi protocol built on Rootstock (RSK), Bitcoin's lon
 - **DAO Governance**: Community-driven protocol governance with VINT token voting
 - **Bitcoin Security**: Protected by Bitcoin's hash power through Rootstock's merged mining
 
-## 🏗️ Architecture
+## Architecture
 
 ### Smart Contracts
 
@@ -37,7 +37,7 @@ Our protocol consists of 6 core smart contracts deployed on Rootstock:
 - **Web3**: Ethers.js, Wagmi, RainbowKit
 - **UI Components**: Radix UI, shadcn/ui
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -87,7 +87,7 @@ npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
 npx hardhat run scripts/deploy.js --network rootstockTestnet
 ```
 
-## 🔧 Integration with Rootstock
+## Integration with Rootstock
 
 ### How We Integrated Rootstock
 
@@ -106,7 +106,7 @@ Vintara leverages Rootstock's unique features:
 - **Bitcoin Economic Finality**: Utilizing Bitcoin's economic security model
 - **Cross-chain Compatibility**: Ready for future Bitcoin L2 integrations
 
-## 👥 Team
+## Team
 
 Our team consists of experienced blockchain developers and DeFi experts:
 
@@ -115,7 +115,7 @@ Our team consists of experienced blockchain developers and DeFi experts:
 - **Frontend Developer**: React/TypeScript specialist with Web3 integration experience
 - **Product Manager**: DeFi product strategy and user experience design
 
-## 🧪 Testing Instructions
+## Testing Instructions
 
 ### Smart Contract Testing
 
@@ -168,7 +168,7 @@ We have successfully deployed and tested our contracts on Rootstock testnet:
    - Borrow 1,000 USDT against 0.5 rBTC collateral
    - Transaction: [0x...](https://explorer.testnet.rsk.co/tx/0x...)
 
-## 📊 Protocol Metrics
+## Protocol Metrics
 
 - **Total Value Locked**: $47.2M
 - **Average APY**: 42.3%
@@ -176,30 +176,30 @@ We have successfully deployed and tested our contracts on Rootstock testnet:
 - **Total Volume**: $125.4M
 - **Security**: 100% Bitcoin hash power protection
 
-## 🔮 Future Roadmap
+## Future Roadmap
 
 ### Phase 1: Core Protocol (Completed)
 
-- ✅ Smart contract development and deployment
-- ✅ Frontend interface development
-- ✅ Basic yield generation mechanisms
-- ✅ Lending and borrowing functionality
+- Smart contract development and deployment
+- Frontend interface development
+- Basic yield generation mechanisms
+- Lending and borrowing functionality
 
 ### Phase 2: Advanced Features (In Progress)
 
-- 🔄 Advanced yield optimization strategies
-- 🔄 Cross-chain bridge integration
-- 🔄 Mobile application development
-- 🔄 Enhanced analytics and reporting
+- Advanced yield optimization strategies
+- Cross-chain bridge integration
+- Mobile application development
+- Enhanced analytics and reporting
 
 ### Phase 3: Ecosystem Expansion (Planned)
 
-- 📋 Integration with other Bitcoin L2s
-- 📋 Institutional DeFi products
-- 📋 Advanced risk management tools
-- 📋 Community governance features
+- Integration with other Bitcoin L2s
+- Institutional DeFi products
+- Advanced risk management tools
+- Community governance features
 
-## 🛡️ Security
+## Security
 
 ### Smart Contract Security
 
@@ -215,7 +215,7 @@ We have successfully deployed and tested our contracts on Rootstock testnet:
 - **External Audit**: Planned for Q2 2024
 - **Bug Bounty**: Community-driven security testing program
 
-## 📈 Yield Generation Mechanisms
+## Yield Generation Mechanisms
 
 ### Primary Yield Sources
 
@@ -237,7 +237,7 @@ function calculateAPY(uint256 principal, uint256 rewards, uint256 timeStaked)
 }
 ```
 
-## 🎥 Demo
+## Demo
 
 ### Video Demo
 
@@ -266,17 +266,17 @@ function calculateAPY(uint256 principal, uint256 rewards, uint256 timeStaked)
    - Borrow against collateral
    - Stake LP tokens for rewards
 
-## 🏆 Hackathon Submission
+## Hackathon Submission
 
 ### Qualification Requirements Met
 
-- ✅ **Smart contracts deployed on Rootstock testnet**
-- ✅ **Minimum 2 successful on-chain transactions**
-- ✅ **Projects have description and GitHub repository**
-- ✅ **Descriptive README with all required sections**
-- ✅ **Clear testing instructions**
-- ✅ **Team background information**
-- ✅ **Video demo provided**
+- **Smart contracts deployed on Rootstock testnet**
+- **Minimum 2 successful on-chain transactions**
+- **Projects have description and GitHub repository**
+- **Descriptive README with all required sections**
+- **Clear testing instructions**
+- **Team background information**
+- **Video demo provided**
 
 ### Why Vintara Deserves to Win
 
@@ -286,18 +286,18 @@ function calculateAPY(uint256 principal, uint256 rewards, uint256 timeStaked)
 4. **Technical Excellence**: Robust smart contract architecture with comprehensive testing
 5. **Real Impact**: Addresses the need for Bitcoin-native yield generation
 
-## 📞 Contact
+## Contact
 
 - **Website**: [https://vintara.vercel.app](https://vintara.vercel.app)
 - **GitHub**: [https://github.com/your-username/vintara](https://github.com/your-username/vintara)
 - **Twitter**: [@Vintara](https://twitter.com/Vintara)
 - **Discord**: [Vintara Community](https://discord.gg/vintara)
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Rootstock team for building the most secure Bitcoin sidechain
 - OpenZeppelin for providing secure smart contract libraries
@@ -305,5 +305,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - All contributors and testers who helped improve the protocol
 
 ---
-
-**Built with ❤️ for the Bitcoin DeFi ecosystem on Rootstock by Vintara**

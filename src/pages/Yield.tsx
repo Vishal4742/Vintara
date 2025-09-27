@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { YieldOptimizer } from "@/components/ui/YieldOptimizer";
 import {
   TrendingUp,
   Clock,
@@ -305,12 +306,13 @@ export default function Yield() {
           onValueChange={setSelectedTab}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="all">All Pools</TabsTrigger>
             <TabsTrigger value="my">My Pools</TabsTrigger>
             <TabsTrigger value="active">Active</TabsTrigger>
             <TabsTrigger value="high-yield">High Yield</TabsTrigger>
             <TabsTrigger value="low-risk">Low Risk</TabsTrigger>
+            <TabsTrigger value="optimizer">Optimizer</TabsTrigger>
           </TabsList>
 
           <TabsContent value={selectedTab} className="space-y-4">
@@ -323,6 +325,10 @@ export default function Yield() {
                 </span>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="optimizer" className="space-y-4">
+            <YieldOptimizer />
           </TabsContent>
         </Tabs>
 

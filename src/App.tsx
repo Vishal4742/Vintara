@@ -13,6 +13,9 @@ import Liquidity from "./pages/Liquidity";
 import Lending from "./pages/Lending";
 import Yield from "./pages/Yield";
 import Analytics from "./pages/Analytics";
+import Governance from "./pages/Governance";
+import Bridge from "./pages/Bridge";
+import Institutional from "./pages/Institutional";
 import NotFound from "./pages/NotFound";
 
 const App = () => (
@@ -32,6 +35,9 @@ const App = () => (
                 <Route path="/lending" element={<Lending />} />
                 <Route path="/yield" element={<Yield />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/governance" element={<Governance />} />
+                <Route path="/bridge" element={<Bridge />} />
+                <Route path="/institutional" element={<Institutional />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

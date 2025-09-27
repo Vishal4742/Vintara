@@ -97,7 +97,8 @@ flowchart TD
 
     %% Styling
     classDef default stroke:#000,stroke-width:1px
-    class App,Serv,Proto,Net,Data,Hard default```
+    class App,Serv,Proto,Net,Data,Hard default
+```
 
 ### Smart Contracts
 

@@ -22,13 +22,15 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container flex h-16 sm:h-18 md:h-20 items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-bitcoin to-bitcoin-light flex items-center justify-center">
-            <span className="text-sm font-bold text-primary-foreground">V</span>
-          </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-bitcoin to-bitcoin-light bg-clip-text text-transparent">
+        <Link to="/" className="flex items-center space-x-1">
+          <img
+            src="/assets/Vintara website-svg.svg"
+            alt="Vintara Logo"
+            className="h-10 w-auto sm:h-12 md:h-14"
+          />
+          <span className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-bitcoin to-bitcoin-light bg-clip-text text-transparent">
             Vintara
           </span>
         </Link>

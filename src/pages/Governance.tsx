@@ -37,6 +37,7 @@ import {
   Zap,
   DollarSign,
   Activity,
+  Info,
 } from "lucide-react";
 
 interface Proposal {

@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./PythOracle.sol";
 
 /**
  * @title YieldVault
@@ -23,10 +24,12 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
 
     // State variables
     IERC20 public immutable rBTC;
+    PythOracle public immutable pythOracle;
     uint256 public totalAssets;
     uint256 public totalSupply;
     uint256 public lastUpdateTime;
     uint256 public yieldRate; // Annual yield rate in basis points (10000 = 100%)
+    uint256 public dynamicYieldRate; // Dynamic yield rate based on market conditions
 
     // User balances
     mapping(address => uint256) public balances;
@@ -37,6 +40,7 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
     event Withdrawn(address indexed user, uint256 amount, uint256 shares);
     event YieldClaimed(address indexed user, uint256 amount);
     event YieldRateUpdated(uint256 newRate);
+    event DynamicYieldRateUpdated(uint256 newRate);
     event StrategyExecuted(
         address indexed strategy,
         uint256 amount,
@@ -49,14 +53,16 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
     error Unauthorized();
     error TransferFailed();
 
-    constructor(address _rBTC) {
+    constructor(address _rBTC, address _pythOracle) {
         rBTC = IERC20(_rBTC);
+        pythOracle = PythOracle(_pythOracle);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
         _grantRole(STRATEGY_ROLE, msg.sender);
 
         lastUpdateTime = block.timestamp;
         yieldRate = 1000; // 10% initial APY
+        dynamicYieldRate = 1000; // 10% initial dynamic APY
     }
 
     /**
@@ -143,10 +149,17 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
         uint256 timeElapsed = block.timestamp.sub(lastClaimTime[user]);
         uint256 userAssets = balances[user].mul(totalAssets).div(totalSupply);
 
+        // Use dynamic yield rate if available, otherwise use base rate
+        uint256 currentYieldRate = dynamicYieldRate > 0
+            ? dynamicYieldRate
+            : yieldRate;
+
         // Calculate yield: (assets * rate * time) / (365 days * 10000)
-        yield = userAssets.mul(yieldRate).mul(timeElapsed).div(365 days).div(
-            10000
-        );
+        yield = userAssets
+            .mul(currentYieldRate)
+            .mul(timeElapsed)
+            .div(365 days)
+            .div(10000);
     }
 
     /**
@@ -169,6 +182,61 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
     function updateYieldRate(uint256 newRate) external onlyRole(MANAGER_ROLE) {
         yieldRate = newRate;
         emit YieldRateUpdated(newRate);
+    }
+
+    /**
+     * @dev Update dynamic yield rate based on market conditions (only manager)
+     * @param newRate New dynamic annual yield rate in basis points
+     */
+    function updateDynamicYieldRate(
+        uint256 newRate
+    ) external onlyRole(MANAGER_ROLE) {
+        dynamicYieldRate = newRate;
+        emit DynamicYieldRateUpdated(newRate);
+    }
+
+    /**
+     * @dev Calculate and update dynamic yield rate based on PyTH price feeds
+     * This function adjusts yield based on rBTC price volatility and market conditions
+     */
+    function updateYieldBasedOnMarketConditions()
+        external
+        onlyRole(MANAGER_ROLE)
+    {
+        try pythOracle.getRBTCPrice() returns (int64 rbtcPrice) {
+            // Convert to uint256 for calculations
+            uint256 price = uint256(uint64(rbtcPrice));
+
+            // Base yield rate
+            uint256 baseRate = yieldRate;
+
+            // Adjust yield based on price conditions
+            // Higher prices = higher yield (more demand)
+            // Lower prices = lower yield (less demand)
+            uint256 priceAdjustment = 0;
+
+            // Example: If rBTC price > $50,000, increase yield by 2%
+            if (price > 50000 * 10 ** 8) {
+                priceAdjustment = 200; // 2% increase
+            }
+            // If rBTC price < $30,000, decrease yield by 1%
+            else if (price < 30000 * 10 ** 8) {
+                priceAdjustment = 100; // 1% decrease
+            }
+
+            // Calculate new dynamic rate
+            uint256 newDynamicRate = baseRate.add(priceAdjustment);
+
+            // Ensure rate is within reasonable bounds (5% to 25%)
+            if (newDynamicRate < 500) newDynamicRate = 500;
+            if (newDynamicRate > 2500) newDynamicRate = 2500;
+
+            dynamicYieldRate = newDynamicRate;
+            emit DynamicYieldRateUpdated(newDynamicRate);
+        } catch {
+            // If PyTH oracle fails, keep current dynamic rate
+            // This ensures the vault continues to function
+        }
     }
 
     /**

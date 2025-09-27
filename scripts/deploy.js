@@ -21,21 +21,39 @@ async function main() {
   await mockToken.waitForDeployment();
   console.log("MockToken deployed to:", await mockToken.getAddress());
 
-  // Deploy YieldVault
+  // Deploy PyTH Oracle
+  console.log("\n🔮 Deploying PyTH Oracle...");
+  const PythOracle = await ethers.getContractFactory("PythOracle");
+  const pythOracle = await PythOracle.deploy();
+  await pythOracle.waitForDeployment();
+  console.log("PyTH Oracle deployed to:", await pythOracle.getAddress());
+
+  // Deploy ENS Resolver
+  console.log("\n🌐 Deploying ENS Resolver...");
+  const ENSResolver = await ethers.getContractFactory("ENSResolver");
+  const ensResolver = await ENSResolver.deploy(ethers.constants.AddressZero); // Mock registry for now
+  await ensResolver.waitForDeployment();
+  console.log("ENS Resolver deployed to:", await ensResolver.getAddress());
+
+  // Deploy YieldVault (updated with PyTH Oracle integration)
   console.log("\n🏦 Deploying YieldVault...");
   const YieldVault = await ethers.getContractFactory("YieldVault");
   const yieldVault = await YieldVault.deploy(
     await mockToken.getAddress(),
-    deployer.address, // Treasury
-    ethers.parseEther("0.1") // 10% fee
+    await pythOracle.getAddress() // PyTH Oracle integration
   );
   await yieldVault.waitForDeployment();
   console.log("YieldVault deployed to:", await yieldVault.getAddress());
 
-  // Deploy LendingProtocol
+  // Deploy LendingProtocol (updated with PyTH Oracle and ENS integration)
   console.log("\n💰 Deploying LendingProtocol...");
   const LendingProtocol = await ethers.getContractFactory("LendingProtocol");
-  const lendingProtocol = await LendingProtocol.deploy();
+  const lendingProtocol = await LendingProtocol.deploy(
+    await mockToken.getAddress(), // rBTC token
+    await mockToken.getAddress(), // USDT token (using same for simplicity)
+    await pythOracle.getAddress(), // PyTH Oracle
+    await ensResolver.getAddress() // ENS Resolver
+  );
   await lendingProtocol.waitForDeployment();
   console.log(
     "LendingProtocol deployed to:",
@@ -86,13 +104,45 @@ async function main() {
   // Configure contracts
   console.log("\n⚙️ Configuring contracts...");
 
-  // Add supported tokens to lending protocol
-  await lendingProtocol.addSupportedToken(
-    await mockToken.getAddress(),
-    ethers.parseEther("0.8"), // 80% collateral factor
-    ethers.parseEther("0.1") // 10% interest rate
+  // Set up PyTH Oracle with initial prices
+  const rbtcPriceId =
+    "0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43";
+  const usdtPriceId =
+    "0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b";
+
+  await pythOracle.connect(deployer).updatePrice(
+    rbtcPriceId,
+    ethers.BigNumber.from("4500000000000"), // $45,000 in 8 decimals
+    ethers.BigNumber.from("950000000"), // 95% confidence
+    -8, // 8 decimal places
+    Math.floor(Date.now() / 1000)
   );
-  console.log("✅ Added supported token to lending protocol");
+
+  await pythOracle.connect(deployer).updatePrice(
+    usdtPriceId,
+    ethers.BigNumber.from("100000000"), // $1.00 in 8 decimals
+    ethers.BigNumber.from("980000000"), // 98% confidence
+    -8, // 8 decimal places
+    Math.floor(Date.now() / 1000)
+  );
+  console.log("✅ Set up PyTH Oracle with initial prices");
+
+  // Register some ENS names for testing
+  const aliceNameHash = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes("alice.vintara.eth")
+  );
+  const bobNameHash = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes("bob.vintara.eth")
+  );
+
+  await ensResolver
+    .connect(deployer)
+    .registerENSName(aliceNameHash, "alice.vintara.eth", deployer.address);
+
+  await ensResolver
+    .connect(deployer)
+    .registerENSName(bobNameHash, "bob.vintara.eth", deployer.address);
+  console.log("✅ Registered test ENS names");
 
   // Set price feeds in oracle
   await priceOracle.setPriceFeed(
@@ -135,6 +185,8 @@ async function main() {
     deployer: deployer.address,
     contracts: {
       MockToken: await mockToken.getAddress(),
+      PythOracle: await pythOracle.getAddress(),
+      ENSResolver: await ensResolver.getAddress(),
       YieldVault: await yieldVault.getAddress(),
       LendingProtocol: await lendingProtocol.getAddress(),
       LiquidityPool: await liquidityPool.getAddress(),

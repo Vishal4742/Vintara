@@ -8,7 +8,9 @@ import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Swap from "./pages/Swap";
 import Liquidity from "./pages/Liquidity";
+import Lending from "./pages/Lending";
 import Yield from "./pages/Yield";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +27,9 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/swap" element={<Swap />} />
             <Route path="/liquidity" element={<Liquidity />} />
+            <Route path="/lending" element={<Lending />} />
             <Route path="/yield" element={<Yield />} />
+            <Route path="/analytics" element={<Analytics />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

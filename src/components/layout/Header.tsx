@@ -7,7 +7,9 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard" },
   { name: "Swap", href: "/swap" },
   { name: "Liquidity", href: "/liquidity" },
+  { name: "Lending", href: "/lending" },
   { name: "Yield", href: "/yield" },
+  { name: "Analytics", href: "/analytics" },
 ];
 
 export function Header() {
@@ -46,11 +48,15 @@ export function Header() {
 
         {/* Wallet Connect Button */}
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="sm" className="hidden md:flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden md:flex items-center space-x-2"
+          >
             <Wallet className="h-4 w-4" />
             <span>Connect Wallet</span>
           </Button>
-          
+
           {/* Mobile menu button */}
           <Button
             variant="ghost"
@@ -58,7 +64,11 @@ export function Header() {
             className="md:hidden"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {isMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>
@@ -81,7 +91,11 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-            <Button variant="outline" size="sm" className="flex items-center space-x-2 justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center space-x-2 justify-center"
+            >
               <Wallet className="h-4 w-4" />
               <span>Connect Wallet</span>
             </Button>

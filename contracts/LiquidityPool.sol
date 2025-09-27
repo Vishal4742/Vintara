@@ -8,12 +8,30 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+// Math library for square root calculation
+library Math {
+    function sqrt(uint256 x) internal pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+        return y;
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+}
+
 /**
- * @title LiquidityPool
+ * @title LiquidityProtocol
  * @dev Automated Market Maker (AMM) for BitcoinYield on Rootstock
  * @notice Implements Uniswap V2 style constant product formula with yield generation
  */
-contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
+contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -93,8 +111,8 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
         uint256 _reserve1 = reserve1;
 
         if (_reserve0 == 0 && _reserve1 == 0) {
-            // First liquidity provision
-            liquidity = amount0.mul(amount1).sqrt().sub(MINIMUM_LIQUIDITY);
+            // First liquidity provision - use geometric mean
+            liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
             _mint(address(0), MINIMUM_LIQUIDITY); // Permanently lock first liquidity
         } else {
             // Calculate liquidity based on existing reserves
@@ -107,7 +125,7 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
         if (liquidity == 0) revert InsufficientLiquidityMinted();
 
         _mint(to, liquidity);
-        _update(amount0, amount1, _reserve0, _reserve1);
+        _update(_reserve0.add(amount0), _reserve1.add(amount1), _reserve0, _reserve1);
 
         // Transfer tokens from user
         token0.safeTransferFrom(msg.sender, address(this), amount0);
@@ -137,7 +155,7 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
         if (amount0 == 0 || amount1 == 0) revert InsufficientLiquidity();
 
         _burn(msg.sender, liquidity);
-        _update(amount0, amount1, reserve0, reserve1);
+        _update(reserve0.sub(amount0), reserve1.sub(amount1), reserve0, reserve1);
 
         // Transfer tokens to user
         token0.safeTransfer(to, amount0);
@@ -148,68 +166,58 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
     }
 
     /**
-     * @dev Swap tokens
-     * @param amount0Out Amount of token0 to output
-     * @param amount1Out Amount of token1 to output
+     * @dev Swap exact tokens for tokens
+     * @param amountIn Input amount
+     * @param amountOutMin Minimum output amount
+     * @param tokenIn Input token address
      * @param to Address to receive output tokens
-     * @param data Additional data (for flash swaps)
+     * @return amountOut Output amount
      */
-    function swap(
-        uint256 amount0Out,
-        uint256 amount1Out,
-        address to,
-        bytes calldata data
-    ) external nonReentrant whenNotPaused {
-        if (amount0Out == 0 && amount1Out == 0)
-            revert InsufficientOutputAmount();
-        if (amount0Out >= reserve0 || amount1Out >= reserve1)
-            revert InsufficientLiquidity();
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address tokenIn,
+        address to
+    ) external nonReentrant whenNotPaused returns (uint256 amountOut) {
+        if (amountIn == 0) revert InsufficientInputAmount();
+        
+        bool token0In = tokenIn == address(token0);
+        if (!token0In && tokenIn != address(token1)) revert InvalidAmount();
 
-        uint256 _reserve0 = reserve0;
-        uint256 _reserve1 = reserve1;
+        // Calculate output amount
+        (uint256 reserveIn, uint256 reserveOut) = token0In 
+            ? (reserve0, reserve1) 
+            : (reserve1, reserve0);
+            
+        amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+        if (amountOut < amountOutMin) revert InsufficientOutputAmount();
 
-        // Calculate input amounts
-        uint256 amount0In = amount0Out > 0
-            ? _getAmountIn(amount0Out, _reserve1, _reserve0)
-            : 0;
-        uint256 amount1In = amount1Out > 0
-            ? _getAmountIn(amount1Out, _reserve0, _reserve1)
-            : 0;
-
-        if (amount0In == 0 && amount1In == 0) revert InsufficientInputAmount();
-
-        // Calculate fees
-        uint256 fee0 = amount0In.mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
-        uint256 fee1 = amount1In.mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
-
-        // Update reserves
-        uint256 balance0 = _reserve0.add(amount0In).sub(amount0Out);
-        uint256 balance1 = _reserve1.add(amount1In).sub(amount1Out);
-
-        // Check K constraint
-        uint256 balance0Adjusted = balance0.mul(10000).sub(fee0);
-        uint256 balance1Adjusted = balance1.mul(10000).sub(fee1);
-
-        if (
-            balance0Adjusted.mul(balance1Adjusted) <
-            _reserve0.mul(_reserve1).mul(10000 ** 2)
-        ) {
-            revert InsufficientLiquidity();
+        // Calculate and collect fees
+        uint256 fee = amountIn.mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
+        if (token0In) {
+            protocolFees0 = protocolFees0.add(fee);
+        } else {
+            protocolFees1 = protocolFees1.add(fee);
         }
 
-        _update(balance0, balance1, _reserve0, _reserve1);
+        // Update reserves
+        if (token0In) {
+            _update(reserve0.add(amountIn), reserve1.sub(amountOut), reserve0, reserve1);
+            // Transfer tokens
+            token0.safeTransferFrom(msg.sender, address(this), amountIn);
+            token1.safeTransfer(to, amountOut);
+            
+            emit Swap(msg.sender, amountIn, 0, 0, amountOut, to);
+        } else {
+            _update(reserve0.sub(amountOut), reserve1.add(amountIn), reserve0, reserve1);
+            // Transfer tokens
+            token1.safeTransferFrom(msg.sender, address(this), amountIn);
+            token0.safeTransfer(to, amountOut);
+            
+            emit Swap(msg.sender, 0, amountIn, amountOut, 0, to);
+        }
 
-        // Transfer output tokens
-        if (amount0Out > 0) token0.safeTransfer(to, amount0Out);
-        if (amount1Out > 0) token1.safeTransfer(to, amount1Out);
-
-        // Transfer input tokens
-        if (amount0In > 0)
-            token0.safeTransferFrom(msg.sender, address(this), amount0In);
-        if (amount1In > 0)
-            token1.safeTransferFrom(msg.sender, address(this), amount1In);
-
-        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+        return amountOut;
     }
 
     /**
@@ -223,7 +231,7 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
         uint256 amountIn,
         uint256 reserveIn,
         uint256 reserveOut
-    ) external pure returns (uint256 amountOut) {
+    ) public pure returns (uint256 amountOut) {
         if (amountIn == 0) revert InsufficientInputAmount();
         if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
 
@@ -245,7 +253,7 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
         uint256 amountOut,
         uint256 reserveIn,
         uint256 reserveOut
-    ) external pure returns (uint256 amountIn) {
+    ) public pure returns (uint256 amountIn) {
         if (amountOut == 0) revert InsufficientOutputAmount();
         if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
 
@@ -336,23 +344,6 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
     }
 
     /**
-     * @dev Internal function to get amount in
-     * @param amountOut Output amount
-     * @param reserveIn Input reserve
-     * @param reserveOut Output reserve
-     * @return amountIn Input amount
-     */
-    function _getAmountIn(
-        uint256 amountOut,
-        uint256 reserveIn,
-        uint256 reserveOut
-    ) internal pure returns (uint256 amountIn) {
-        uint256 numerator = reserveIn.mul(amountOut).mul(10000);
-        uint256 denominator = reserveOut.sub(amountOut).mul(9970);
-        return numerator.div(denominator).add(1);
-    }
-
-    /**
      * @dev Emergency pause (only admin)
      */
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -364,19 +355,5 @@ contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
      */
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
-    }
-}
-
-// Math library for square root calculation
-library Math {
-    function sqrt(uint256 x) internal pure returns (uint256) {
-        if (x == 0) return 0;
-        uint256 z = (x + 1) / 2;
-        uint256 y = x;
-        while (z < y) {
-            y = z;
-            z = (x / z + z) / 2;
-        }
-        return y;
     }
 }

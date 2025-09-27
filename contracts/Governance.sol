@@ -8,442 +8,339 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+// Math library for square root calculation
+library Math {
+    function sqrt(uint256 x) internal pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+        return y;
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+}
+
 /**
- * @title Governance
- * @dev DAO governance contract for BitcoinYield protocol on Rootstock
- * @notice Enables community governance with voting and proposal execution
+ * @title LiquidityProtocol
+ * @dev Automated Market Maker (AMM) for BitcoinYield on Rootstock
+ * @notice Implements Uniswap V2 style constant product formula with yield generation
  */
-contract Governance is ReentrancyGuard, Pausable, AccessControl {
+contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
-    // Proposal states
-    enum ProposalState {
-        Pending,
-        Active,
-        Canceled,
-        Defeated,
-        Succeeded,
-        Queued,
-        Expired,
-        Executed
-    }
-
-    // Proposal structure
-    struct Proposal {
-        uint256 id;
-        address proposer;
-        address[] targets;
-        uint256[] values;
-        string[] signatures;
-        bytes[] calldatas;
-        uint256 startBlock;
-        uint256 endBlock;
-        uint256 forVotes;
-        uint256 againstVotes;
-        uint256 abstainVotes;
-        bool canceled;
-        bool executed;
-        string description;
-        uint256 eta;
-    }
-
-    // Vote structure
-    struct Vote {
-        bool hasVoted;
-        uint8 support; // 0 = against, 1 = for, 2 = abstain
-        uint256 votes;
-    }
+    // Constants
+    uint256 public constant FEE_DENOMINATOR = 10000;
+    uint256 public constant PROTOCOL_FEE = 30; // 0.3%
+    uint256 public constant MINIMUM_LIQUIDITY = 1000; // Minimum liquidity to prevent division by zero
 
     // State variables
-    IERC20 public immutable governanceToken; // VINT token
-    uint256 public constant VOTING_DELAY = 1; // 1 block
-    uint256 public constant VOTING_PERIOD = 17280; // ~3 days in blocks
-    uint256 public constant PROPOSAL_THRESHOLD = 1000000000000000000000; // 1000 VINT
-    uint256 public constant QUORUM_VOTES = 10000000000000000000000; // 10000 VINT
-    uint256 public constant TIMELOCK_DELAY = 2 days;
+    IERC20 public immutable token0;
+    IERC20 public immutable token1;
+    uint256 public reserve0;
+    uint256 public reserve1;
+    uint256 public totalSupply;
+    uint256 public kLast; // K value at last liquidity event
 
-    uint256 public proposalCount;
-    mapping(uint256 => Proposal) public proposals;
-    mapping(uint256 => mapping(address => Vote)) public votes;
-    mapping(address => uint256) public proposalCounts;
+    // User balances
+    mapping(address => uint256) public balances;
 
-    // Timelock
-    mapping(bytes32 => bool) public queuedTransactions;
-    uint256 public constant GRACE_PERIOD = 14 days;
+    // Fee tracking
+    uint256 public protocolFees0;
+    uint256 public protocolFees1;
 
     // Events
-    event ProposalCreated(
-        uint256 indexed proposalId,
-        address indexed proposer,
-        address[] targets,
-        uint256[] values,
-        string[] signatures,
-        bytes[] calldatas,
-        uint256 startBlock,
-        uint256 endBlock,
-        string description
+    event Mint(address indexed sender, uint256 amount0, uint256 amount1);
+    event Burn(
+        address indexed sender,
+        uint256 amount0,
+        uint256 amount1,
+        address indexed to
     );
-    event VoteCast(
-        address indexed voter,
-        uint256 indexed proposalId,
-        uint8 support,
-        uint256 votes
+    event Swap(
+        address indexed sender,
+        uint256 amount0In,
+        uint256 amount1In,
+        uint256 amount0Out,
+        uint256 amount1Out,
+        address indexed to
     );
-    event ProposalCanceled(uint256 indexed proposalId);
-    event ProposalQueued(uint256 indexed proposalId, uint256 eta);
-    event ProposalExecuted(uint256 indexed proposalId);
-    event TransactionQueued(
-        bytes32 indexed txHash,
-        address indexed target,
-        uint256 value,
-        string signature,
-        bytes data,
-        uint256 eta
-    );
-    event TransactionExecuted(
-        bytes32 indexed txHash,
-        address indexed target,
-        uint256 value,
-        string signature,
-        bytes data
-    );
-    event TransactionCanceled(
-        bytes32 indexed txHash,
-        address indexed target,
-        uint256 value,
-        string signature,
-        bytes data
-    );
+    event Sync(uint256 reserve0, uint256 reserve1);
+    event FeesCollected(uint256 fee0, uint256 fee1);
 
     // Errors
-    error ProposalNotFound();
-    error ProposalNotActive();
-    error AlreadyVoted();
-    error InsufficientVotingPower();
-    error ProposalNotSucceeded();
-    error ProposalNotQueued();
-    error TransactionNotQueued();
-    error TransactionNotReady();
-    error TransactionExpired();
-    error Unauthorized();
+    error InsufficientLiquidity();
+    error InsufficientOutputAmount();
+    error InsufficientInputAmount();
+    error InsufficientLiquidityMinted();
+    error TransferFailed();
+    error InvalidAmount();
 
-    constructor(address _governanceToken) {
-        governanceToken = IERC20(_governanceToken);
+    constructor(address _token0, address _token1) {
+        token0 = IERC20(_token0);
+        token1 = IERC20(_token1);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
     }
 
     /**
-     * @dev Create a new proposal
-     * @param targets Target addresses for calls
-     * @param values ETH values for calls
-     * @param signatures Function signatures for calls
-     * @param calldatas Calldata for calls
-     * @param description Description of the proposal
-     * @return proposalId ID of the created proposal
+     * @dev Add liquidity to the pool
+     * @param amount0 Amount of token0 to add
+     * @param amount1 Amount of token1 to add
+     * @param to Address to receive LP tokens
+     * @return liquidity Amount of LP tokens minted
      */
-    function propose(
-        address[] memory targets,
-        uint256[] memory values,
-        string[] memory signatures,
-        bytes[] memory calldatas,
-        string memory description
-    ) external returns (uint256 proposalId) {
-        if (governanceToken.balanceOf(msg.sender) < PROPOSAL_THRESHOLD) {
-            revert InsufficientVotingPower();
-        }
+    function addLiquidity(
+        uint256 amount0,
+        uint256 amount1,
+        address to
+    ) external nonReentrant whenNotPaused returns (uint256 liquidity) {
+        if (amount0 == 0 || amount1 == 0) revert InvalidAmount();
 
-        proposalId = proposalCount.add(1);
-        proposalCount = proposalId;
+        uint256 _reserve0 = reserve0;
+        uint256 _reserve1 = reserve1;
 
-        uint256 startBlock = block.number.add(VOTING_DELAY);
-        uint256 endBlock = startBlock.add(VOTING_PERIOD);
-
-        proposals[proposalId] = Proposal({
-            id: proposalId,
-            proposer: msg.sender,
-            targets: targets,
-            values: values,
-            signatures: signatures,
-            calldatas: calldatas,
-            startBlock: startBlock,
-            endBlock: endBlock,
-            forVotes: 0,
-            againstVotes: 0,
-            abstainVotes: 0,
-            canceled: false,
-            executed: false,
-            description: description,
-            eta: 0
-        });
-
-        proposalCounts[msg.sender] = proposalCounts[msg.sender].add(1);
-
-        emit ProposalCreated(
-            proposalId,
-            msg.sender,
-            targets,
-            values,
-            signatures,
-            calldatas,
-            startBlock,
-            endBlock,
-            description
-        );
-
-        return proposalId;
-    }
-
-    /**
-     * @dev Cast a vote on a proposal
-     * @param proposalId ID of the proposal
-     * @param support Support value (0 = against, 1 = for, 2 = abstain)
-     */
-    function castVote(uint256 proposalId, uint8 support) external {
-        if (proposalId > proposalCount) revert ProposalNotFound();
-
-        Proposal storage proposal = proposals[proposalId];
-        if (
-            block.number < proposal.startBlock ||
-            block.number > proposal.endBlock
-        ) {
-            revert ProposalNotActive();
-        }
-
-        Vote storage vote = votes[proposalId][msg.sender];
-        if (vote.hasVoted) revert AlreadyVoted();
-
-        uint256 votes_ = governanceToken.balanceOf(msg.sender);
-        if (votes_ == 0) revert InsufficientVotingPower();
-
-        vote.hasVoted = true;
-        vote.support = support;
-        vote.votes = votes_;
-
-        if (support == 0) {
-            proposal.againstVotes = proposal.againstVotes.add(votes_);
-        } else if (support == 1) {
-            proposal.forVotes = proposal.forVotes.add(votes_);
-        } else if (support == 2) {
-            proposal.abstainVotes = proposal.abstainVotes.add(votes_);
-        }
-
-        emit VoteCast(msg.sender, proposalId, support, votes_);
-    }
-
-    /**
-     * @dev Queue a proposal for execution
-     * @param proposalId ID of the proposal
-     */
-    function queue(uint256 proposalId) external {
-        if (proposalId > proposalCount) revert ProposalNotFound();
-
-        Proposal storage proposal = proposals[proposalId];
-        if (proposal.state() != ProposalState.Succeeded)
-            revert ProposalNotSucceeded();
-
-        uint256 eta = block.timestamp.add(TIMELOCK_DELAY);
-        proposal.eta = eta;
-
-        for (uint256 i = 0; i < proposal.targets.length; i++) {
-            _queueOrRevert(
-                proposal.targets[i],
-                proposal.values[i],
-                proposal.signatures[i],
-                proposal.calldatas[i],
-                eta
+        if (_reserve0 == 0 && _reserve1 == 0) {
+            // First liquidity provision - use geometric mean
+            liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
+            _mint(address(0), MINIMUM_LIQUIDITY); // Permanently lock first liquidity
+        } else {
+            // Calculate liquidity based on existing reserves
+            liquidity = Math.min(
+                amount0.mul(totalSupply).div(_reserve0),
+                amount1.mul(totalSupply).div(_reserve1)
             );
         }
 
-        emit ProposalQueued(proposalId, eta);
+        if (liquidity == 0) revert InsufficientLiquidityMinted();
+
+        _mint(to, liquidity);
+        _update(_reserve0.add(amount0), _reserve1.add(amount1), _reserve0, _reserve1);
+
+        // Transfer tokens from user
+        token0.safeTransferFrom(msg.sender, address(this), amount0);
+        token1.safeTransferFrom(msg.sender, address(this), amount1);
+
+        emit Mint(msg.sender, amount0, amount1);
+        return liquidity;
     }
 
     /**
-     * @dev Execute a queued proposal
-     * @param proposalId ID of the proposal
+     * @dev Remove liquidity from the pool
+     * @param liquidity Amount of LP tokens to burn
+     * @param to Address to receive tokens
+     * @return amount0 Amount of token0 received
+     * @return amount1 Amount of token1 received
      */
-    function execute(uint256 proposalId) external payable {
-        if (proposalId > proposalCount) revert ProposalNotFound();
+    function removeLiquidity(
+        uint256 liquidity,
+        address to
+    ) external nonReentrant returns (uint256 amount0, uint256 amount1) {
+        if (liquidity == 0) revert InvalidAmount();
 
-        Proposal storage proposal = proposals[proposalId];
-        if (proposal.state() != ProposalState.Queued)
-            revert ProposalNotQueued();
+        uint256 _totalSupply = totalSupply;
+        amount0 = liquidity.mul(reserve0).div(_totalSupply);
+        amount1 = liquidity.mul(reserve1).div(_totalSupply);
 
-        proposal.executed = true;
+        if (amount0 == 0 || amount1 == 0) revert InsufficientLiquidity();
 
-        for (uint256 i = 0; i < proposal.targets.length; i++) {
-            _executeTransaction(
-                proposal.targets[i],
-                proposal.values[i],
-                proposal.signatures[i],
-                proposal.calldatas[i]
-            );
+        _burn(msg.sender, liquidity);
+        _update(reserve0.sub(amount0), reserve1.sub(amount1), reserve0, reserve1);
+
+        // Transfer tokens to user
+        token0.safeTransfer(to, amount0);
+        token1.safeTransfer(to, amount1);
+
+        emit Burn(msg.sender, amount0, amount1, to);
+        return (amount0, amount1);
+    }
+
+    /**
+     * @dev Swap exact tokens for tokens
+     * @param amountIn Input amount
+     * @param amountOutMin Minimum output amount
+     * @param tokenIn Input token address
+     * @param to Address to receive output tokens
+     * @return amountOut Output amount
+     */
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address tokenIn,
+        address to
+    ) external nonReentrant whenNotPaused returns (uint256 amountOut) {
+        if (amountIn == 0) revert InsufficientInputAmount();
+        
+        bool token0In = tokenIn == address(token0);
+        if (!token0In && tokenIn != address(token1)) revert InvalidAmount();
+
+        // Calculate output amount
+        (uint256 reserveIn, uint256 reserveOut) = token0In 
+            ? (reserve0, reserve1) 
+            : (reserve1, reserve0);
+            
+        amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+        if (amountOut < amountOutMin) revert InsufficientOutputAmount();
+
+        // Calculate and collect fees
+        uint256 fee = amountIn.mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
+        if (token0In) {
+            protocolFees0 = protocolFees0.add(fee);
+        } else {
+            protocolFees1 = protocolFees1.add(fee);
         }
 
-        emit ProposalExecuted(proposalId);
-    }
-
-    /**
-     * @dev Cancel a proposal
-     * @param proposalId ID of the proposal
-     */
-    function cancel(uint256 proposalId) external {
-        if (proposalId > proposalCount) revert ProposalNotFound();
-
-        Proposal storage proposal = proposals[proposalId];
-        if (
-            msg.sender != proposal.proposer &&
-            !hasRole(MANAGER_ROLE, msg.sender)
-        ) {
-            revert Unauthorized();
+        // Update reserves
+        if (token0In) {
+            _update(reserve0.add(amountIn), reserve1.sub(amountOut), reserve0, reserve1);
+            // Transfer tokens
+            token0.safeTransferFrom(msg.sender, address(this), amountIn);
+            token1.safeTransfer(to, amountOut);
+            
+            emit Swap(msg.sender, amountIn, 0, 0, amountOut, to);
+        } else {
+            _update(reserve0.sub(amountOut), reserve1.add(amountIn), reserve0, reserve1);
+            // Transfer tokens
+            token1.safeTransferFrom(msg.sender, address(this), amountIn);
+            token0.safeTransfer(to, amountOut);
+            
+            emit Swap(msg.sender, 0, amountIn, amountOut, 0, to);
         }
 
-        proposal.canceled = true;
+        return amountOut;
+    }
 
-        for (uint256 i = 0; i < proposal.targets.length; i++) {
-            _cancelTransaction(
-                proposal.targets[i],
-                proposal.values[i],
-                proposal.signatures[i],
-                proposal.calldatas[i]
-            );
+    /**
+     * @dev Get amount out for a given input
+     * @param amountIn Input amount
+     * @param reserveIn Input reserve
+     * @param reserveOut Output reserve
+     * @return amountOut Output amount
+     */
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) public pure returns (uint256 amountOut) {
+        if (amountIn == 0) revert InsufficientInputAmount();
+        if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
+
+        uint256 amountInWithFee = amountIn.mul(9970); // 0.3% fee
+        uint256 numerator = amountInWithFee.mul(reserveOut);
+        uint256 denominator = reserveIn.mul(10000).add(amountInWithFee);
+
+        return numerator.div(denominator);
+    }
+
+    /**
+     * @dev Get amount in for a given output
+     * @param amountOut Output amount
+     * @param reserveIn Input reserve
+     * @param reserveOut Output reserve
+     * @return amountIn Input amount
+     */
+    function getAmountIn(
+        uint256 amountOut,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) public pure returns (uint256 amountIn) {
+        if (amountOut == 0) revert InsufficientOutputAmount();
+        if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
+
+        uint256 numerator = reserveIn.mul(amountOut).mul(10000);
+        uint256 denominator = reserveOut.sub(amountOut).mul(9970);
+
+        return numerator.div(denominator).add(1);
+    }
+
+    /**
+     * @dev Collect protocol fees
+     */
+    function collectFees() external onlyRole(MANAGER_ROLE) {
+        uint256 fee0 = protocolFees0;
+        uint256 fee1 = protocolFees1;
+
+        if (fee0 > 0) {
+            protocolFees0 = 0;
+            token0.safeTransfer(msg.sender, fee0);
         }
 
-        emit ProposalCanceled(proposalId);
+        if (fee1 > 0) {
+            protocolFees1 = 0;
+            token1.safeTransfer(msg.sender, fee1);
+        }
+
+        emit FeesCollected(fee0, fee1);
     }
 
     /**
-     * @dev Get proposal state
-     * @param proposalId ID of the proposal
-     * @return state Current state of the proposal
+     * @dev Get current reserves
+     * @return _reserve0 Reserve of token0
+     * @return _reserve1 Reserve of token1
      */
-    function getProposalState(
-        uint256 proposalId
-    ) external view returns (ProposalState state) {
-        if (proposalId > proposalCount) revert ProposalNotFound();
-        return proposals[proposalId].state();
-    }
-
-    /**
-     * @dev Get proposal votes
-     * @param proposalId ID of the proposal
-     * @return forVotes For votes
-     * @return againstVotes Against votes
-     * @return abstainVotes Abstain votes
-     */
-    function getProposalVotes(
-        uint256 proposalId
-    )
+    function getReserves()
         external
         view
-        returns (uint256 forVotes, uint256 againstVotes, uint256 abstainVotes)
+        returns (uint256 _reserve0, uint256 _reserve1)
     {
-        if (proposalId > proposalCount) revert ProposalNotFound();
-
-        Proposal storage proposal = proposals[proposalId];
-        return (
-            proposal.forVotes,
-            proposal.againstVotes,
-            proposal.abstainVotes
-        );
+        return (reserve0, reserve1);
     }
 
     /**
-     * @dev Get user's vote on a proposal
-     * @param proposalId ID of the proposal
-     * @param voter Voter address
-     * @return hasVoted Whether the user has voted
-     * @return support Support value
-     * @return votes Number of votes
+     * @dev Get user's LP token balance
+     * @param user User address
+     * @return balance LP token balance
      */
-    function getVote(
-        uint256 proposalId,
-        address voter
-    ) external view returns (bool hasVoted, uint8 support, uint256 votes) {
-        if (proposalId > proposalCount) revert ProposalNotFound();
-
-        Vote storage vote = votes[proposalId][voter];
-        return (vote.hasVoted, vote.support, vote.votes);
+    function getBalance(address user) external view returns (uint256 balance) {
+        return balances[user];
     }
 
     /**
-     * @dev Internal function to queue a transaction
+     * @dev Internal function to mint LP tokens
+     * @param to Address to mint to
+     * @param amount Amount to mint
      */
-    function _queueOrRevert(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data,
-        uint256 eta
+    function _mint(address to, uint256 amount) internal {
+        balances[to] = balances[to].add(amount);
+        totalSupply = totalSupply.add(amount);
+    }
+
+    /**
+     * @dev Internal function to burn LP tokens
+     * @param from Address to burn from
+     * @param amount Amount to burn
+     */
+    function _burn(address from, uint256 amount) internal {
+        balances[from] = balances[from].sub(amount);
+        totalSupply = totalSupply.sub(amount);
+    }
+
+    /**
+     * @dev Internal function to update reserves
+     * @param balance0 New balance of token0
+     * @param balance1 New balance of token1
+     * @param _reserve0 Old reserve of token0
+     * @param _reserve1 Old reserve of token1
+     */
+    function _update(
+        uint256 balance0,
+        uint256 balance1,
+        uint256 _reserve0,
+        uint256 _reserve1
     ) internal {
-        bytes32 txHash = keccak256(
-            abi.encode(target, value, signature, data, eta)
-        );
-        queuedTransactions[txHash] = true;
-
-        emit TransactionQueued(txHash, target, value, signature, data, eta);
-    }
-
-    /**
-     * @dev Internal function to execute a transaction
-     */
-    function _executeTransaction(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data
-    ) internal {
-        bytes32 txHash = keccak256(
-            abi.encode(
-                target,
-                value,
-                signature,
-                data,
-                proposals[proposalCount].eta
-            )
-        );
-
-        if (!queuedTransactions[txHash]) revert TransactionNotQueued();
-        if (block.timestamp < proposals[proposalCount].eta)
-            revert TransactionNotReady();
-        if (block.timestamp > proposals[proposalCount].eta.add(GRACE_PERIOD))
-            revert TransactionExpired();
-
-        queuedTransactions[txHash] = false;
-
-        // Execute the transaction
-        (bool success, ) = target.call{value: value}(data);
-        require(success, "Transaction execution failed");
-
-        emit TransactionExecuted(txHash, target, value, signature, data);
-    }
-
-    /**
-     * @dev Internal function to cancel a transaction
-     */
-    function _cancelTransaction(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data
-    ) internal {
-        bytes32 txHash = keccak256(
-            abi.encode(
-                target,
-                value,
-                signature,
-                data,
-                proposals[proposalCount].eta
-            )
-        );
-        queuedTransactions[txHash] = false;
-
-        emit TransactionCanceled(txHash, target, value, signature, data);
+        reserve0 = balance0;
+        reserve1 = balance1;
+        emit Sync(balance0, balance1);
     }
 
     /**
@@ -458,38 +355,5 @@ contract Governance is ReentrancyGuard, Pausable, AccessControl {
      */
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
-    }
-}
-
-/**
- * @title Proposal
- * @dev Extension to add state function to Proposal struct
- */
-library Proposal {
-    using SafeMath for uint256;
-
-    function state(
-        Governance.Proposal storage proposal
-    ) internal view returns (Governance.ProposalState) {
-        if (proposal.canceled) {
-            return Governance.ProposalState.Canceled;
-        } else if (block.number <= proposal.startBlock) {
-            return Governance.ProposalState.Pending;
-        } else if (block.number <= proposal.endBlock) {
-            return Governance.ProposalState.Active;
-        } else if (
-            proposal.forVotes <= proposal.againstVotes ||
-            proposal.forVotes < 10000000000000000000000
-        ) {
-            return Governance.ProposalState.Defeated;
-        } else if (proposal.eta == 0) {
-            return Governance.ProposalState.Succeeded;
-        } else if (proposal.executed) {
-            return Governance.ProposalState.Executed;
-        } else if (block.timestamp >= proposal.eta.add(14 days)) {
-            return Governance.ProposalState.Expired;
-        } else {
-            return Governance.ProposalState.Queued;
-        }
     }
 }

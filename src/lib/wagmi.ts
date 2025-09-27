@@ -31,8 +31,16 @@ const rootstockTestnet = {
     symbol: "tRBTC",
   },
   rpcUrls: {
-    public: { http: ["https://public-node.testnet.rsk.co"] },
-    default: { http: ["https://public-node.testnet.rsk.co"] },
+    public: {
+      http: [
+        "https://rpc.testnet.rootstock.io/aHYduscUz7vhlRM1DHcieLdE9SfQ7K-T",
+      ],
+    },
+    default: {
+      http: [
+        "https://rpc.testnet.rootstock.io/aHYduscUz7vhlRM1DHcieLdE9SfQ7K-T",
+      ],
+    },
   },
   blockExplorers: {
     default: {
@@ -45,11 +53,7 @@ const rootstockTestnet = {
 
 export const config = getDefaultConfig({
   appName: "Vintara",
-<<<<<<< HEAD
-  projectId: "YOUR_PROJECT_ID", // Get this from https://cloud.walletconnect.com/
-=======
   projectId: "95856d4bd39a6a4f4ec4a9477b796f17", // Get this from https://cloud.walletconnect.com/
->>>>>>> feature1
   chains: [rootstock, rootstockTestnet, mainnet, sepolia],
   ssr: false, // If your dApp uses server side rendering (SSR)
 });

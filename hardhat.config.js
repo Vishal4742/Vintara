@@ -23,7 +23,7 @@ module.exports = {
     },
     // Rootstock Testnet
     rootstockTestnet: {
-      url: "https://public-node.testnet.rsk.co",
+      url: "https://rpc.testnet.rootstock.io/aHYduscUz7vhlRM1DHcieLdE9SfQ7K-T",
       chainId: 31,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: 60000000, // 0.06 gwei

@@ -24,9 +24,7 @@ export default function Landing() {
                 </span>
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Earn native Bitcoin yield through automated lending, liquidity
-                provision, and yield farming strategies on Rootstock - Bitcoin's
-                most secure sidechain.
+                Seamless Bitcoin Yield. Powered by Rootstock.
               </p>
             </div>
 
@@ -104,10 +102,10 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <Card
-              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-colors cursor-pointer"
+              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-all duration-300 hover:scale-105 cursor-pointer"
               onClick={() => (window.location.href = "/yield")}
             >
-              <div className="h-12 w-12 rounded-lg bg-bitcoin/10 flex items-center justify-center text-bitcoin mx-auto">
+              <div className="h-12 w-12 rounded-lg bg-gradient-to-r from-bitcoin/20 to-bitcoin-light/20 flex items-center justify-center text-bitcoin mx-auto">
                 <TrendingUp className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-semibold">Yield Farming</h3>
@@ -118,10 +116,10 @@ export default function Landing() {
             </Card>
 
             <Card
-              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-colors cursor-pointer"
+              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-all duration-300 hover:scale-105 cursor-pointer"
               onClick={() => (window.location.href = "/lending")}
             >
-              <div className="h-12 w-12 rounded-lg bg-bitcoin/10 flex items-center justify-center text-bitcoin mx-auto">
+              <div className="h-12 w-12 rounded-lg bg-gradient-to-r from-bitcoin/20 to-bitcoin-light/20 flex items-center justify-center text-bitcoin mx-auto">
                 <Shield className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-semibold">Lending Protocol</h3>
@@ -132,10 +130,10 @@ export default function Landing() {
             </Card>
 
             <Card
-              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-colors cursor-pointer"
+              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-all duration-300 hover:scale-105 cursor-pointer"
               onClick={() => (window.location.href = "/swap")}
             >
-              <div className="h-12 w-12 rounded-lg bg-bitcoin/10 flex items-center justify-center text-bitcoin mx-auto">
+              <div className="h-12 w-12 rounded-lg bg-gradient-to-r from-bitcoin/20 to-bitcoin-light/20 flex items-center justify-center text-bitcoin mx-auto">
                 <Zap className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-semibold">DEX Aggregator</h3>
@@ -146,10 +144,10 @@ export default function Landing() {
             </Card>
 
             <Card
-              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-colors cursor-pointer"
+              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-all duration-300 hover:scale-105 cursor-pointer"
               onClick={() => (window.location.href = "/liquidity")}
             >
-              <div className="h-12 w-12 rounded-lg bg-bitcoin/10 flex items-center justify-center text-bitcoin mx-auto">
+              <div className="h-12 w-12 rounded-lg bg-gradient-to-r from-bitcoin/20 to-bitcoin-light/20 flex items-center justify-center text-bitcoin mx-auto">
                 <Users className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-semibold">Liquidity Pools</h3>
@@ -181,30 +179,60 @@ export default function Landing() {
               </p>
             </div>
 
-            <Card className="p-8 glass-card border-bitcoin/20 max-w-2xl mx-auto">
-              <div className="space-y-4">
-                <div className="text-left space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    AI Agent Status
+            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              <Card className="p-6 card-gradient border-border/40 hover:border-bitcoin/20 transition-all duration-300">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-bitcoin/20 to-bitcoin-light/20 flex items-center justify-center">
+                      <span className="text-lg">🤖</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">
+                        Intelligent Yield Optimization
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        AI-powered portfolio management
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-                    <span className="text-sm">Development in progress...</span>
-                  </div>
-                </div>
-                <div className="text-left space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    Expected Features
-                  </div>
-                  <ul className="text-sm space-y-1">
+                  <ul className="text-sm space-y-2 text-muted-foreground">
                     <li>• Automated yield optimization</li>
                     <li>• Risk management strategies</li>
                     <li>• Market analysis & predictions</li>
                     <li>• Portfolio rebalancing</li>
                   </ul>
                 </div>
+              </Card>
+
+              <Card className="p-6 card-gradient border-border/40 hover:border-bitcoin/20 transition-all duration-300">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-bitcoin/20 to-bitcoin-light/20 flex items-center justify-center">
+                      <span className="text-lg">⚡</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Automated DeFi Agents</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Smart contract automation
+                      </p>
+                    </div>
+                  </div>
+                  <ul className="text-sm space-y-2 text-muted-foreground">
+                    <li>• Liquidation bots</li>
+                    <li>• Arbitrage opportunities</li>
+                    <li>• Governance participation</li>
+                    <li>• Yield harvesting</li>
+                  </ul>
+                </div>
+              </Card>
+            </div>
+
+            <div className="text-center">
+              <div className="inline-flex items-center rounded-full border border-bitcoin/20 bg-bitcoin/10 px-4 py-2 text-sm text-bitcoin">
+                <div className="h-2 w-2 rounded-full bg-bitcoin animate-pulse mr-2" />
+                Development in progress - Coming Q2 2024
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       </section>

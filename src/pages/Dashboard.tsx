@@ -2,6 +2,8 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConnectWallet } from "@/components/ui/ConnectWallet";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   TrendingUp,
   DollarSign,
@@ -9,6 +11,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ExternalLink,
+  Wallet,
+  PieChart,
+  Clock,
+  Shield,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -56,9 +62,9 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-bold">Your DeFi Portfolio</h1>
           <p className="text-muted-foreground">
-            Overview of your DeFi portfolio
+            Overview of your Bitcoin yield and DeFi positions
           </p>
         </div>
         <ConnectWallet />

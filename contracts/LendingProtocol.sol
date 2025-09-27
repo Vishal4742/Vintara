@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./PythOracle.sol";
+import "./ENSResolver.sol";
 
 /**
  * @title LendingProtocol
@@ -29,11 +31,15 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
     // State variables
     IERC20 public immutable rBTC;
     IERC20 public immutable borrowToken; // USDT or DAI
+    PythOracle public immutable pythOracle;
+    ENSResolver public immutable ensResolver;
 
     uint256 public totalBorrowed;
     uint256 public totalCollateral;
     uint256 public borrowRate; // Annual borrow rate in basis points
     uint256 public supplyRate; // Annual supply rate in basis points
+    uint256 public dynamicBorrowRate; // Dynamic borrow rate based on market conditions
+    uint256 public dynamicSupplyRate; // Dynamic supply rate based on market conditions
 
     // User positions
     struct Position {
@@ -58,6 +64,20 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         uint256 debtRepaid
     );
     event InterestRatesUpdated(uint256 newBorrowRate, uint256 newSupplyRate);
+    event DynamicInterestRatesUpdated(
+        uint256 newBorrowRate,
+        uint256 newSupplyRate
+    );
+    event ENSBorrowed(
+        string indexed ensName,
+        address indexed resolvedAddress,
+        uint256 amount
+    );
+    event ENSRepaid(
+        string indexed ensName,
+        address indexed resolvedAddress,
+        uint256 amount
+    );
 
     // Errors
     error InsufficientCollateral();
@@ -66,9 +86,16 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
     error InvalidAmount();
     error Unauthorized();
 
-    constructor(address _rBTC, address _borrowToken) {
+    constructor(
+        address _rBTC,
+        address _borrowToken,
+        address _pythOracle,
+        address _ensResolver
+    ) {
         rBTC = IERC20(_rBTC);
         borrowToken = IERC20(_borrowToken);
+        pythOracle = PythOracle(_pythOracle);
+        ensResolver = ENSResolver(_ensResolver);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
@@ -76,6 +103,8 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
 
         borrowRate = 800; // 8% initial borrow rate
         supplyRate = 600; // 6% initial supply rate
+        dynamicBorrowRate = 800; // 8% initial dynamic borrow rate
+        dynamicSupplyRate = 600; // 6% initial dynamic supply rate
     }
 
     /**
@@ -244,6 +273,136 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
     }
 
     /**
+     * @dev Update dynamic interest rates based on market conditions (only manager)
+     * @param newBorrowRate New dynamic borrow rate in basis points
+     * @param newSupplyRate New dynamic supply rate in basis points
+     */
+    function updateDynamicInterestRates(
+        uint256 newBorrowRate,
+        uint256 newSupplyRate
+    ) external onlyRole(MANAGER_ROLE) {
+        dynamicBorrowRate = newBorrowRate;
+        dynamicSupplyRate = newSupplyRate;
+        emit DynamicInterestRatesUpdated(newBorrowRate, newSupplyRate);
+    }
+
+    /**
+     * @dev Calculate and update dynamic interest rates based on PyTH price feeds
+     * This function adjusts rates based on rBTC price volatility and market conditions
+     */
+    function updateRatesBasedOnMarketConditions()
+        external
+        onlyRole(MANAGER_ROLE)
+    {
+        try pythOracle.getRBTCToUSDTRatio() returns (uint256 ratio) {
+            // Base rates
+            uint256 baseBorrowRate = borrowRate;
+            uint256 baseSupplyRate = supplyRate;
+
+            // Adjust rates based on rBTC/USDT ratio
+            // Higher ratio = higher demand for rBTC = higher borrow rates
+            uint256 borrowAdjustment = 0;
+            uint256 supplyAdjustment = 0;
+
+            // Example adjustments based on ratio
+            if (ratio > 50000 * 10 ** 8) {
+                // rBTC > $50,000
+                borrowAdjustment = 100; // 1% increase
+                supplyAdjustment = 50; // 0.5% increase
+            } else if (ratio < 30000 * 10 ** 8) {
+                // rBTC < $30,000
+                borrowAdjustment = 50; // 0.5% decrease
+                supplyAdjustment = 25; // 0.25% decrease
+            }
+
+            // Calculate new dynamic rates
+            uint256 newBorrowRate = baseBorrowRate.add(borrowAdjustment);
+            uint256 newSupplyRate = baseSupplyRate.add(supplyAdjustment);
+
+            // Ensure rates are within reasonable bounds
+            if (newBorrowRate < 200) newBorrowRate = 200; // Min 2%
+            if (newBorrowRate > 2000) newBorrowRate = 2000; // Max 20%
+            if (newSupplyRate < 100) newSupplyRate = 100; // Min 1%
+            if (newSupplyRate > 1500) newSupplyRate = 1500; // Max 15%
+
+            dynamicBorrowRate = newBorrowRate;
+            dynamicSupplyRate = newSupplyRate;
+            emit DynamicInterestRatesUpdated(newBorrowRate, newSupplyRate);
+        } catch {
+            // If PyTH oracle fails, keep current dynamic rates
+        }
+    }
+
+    /**
+     * @dev Borrow tokens using ENS name
+     * @param ensName ENS name (e.g., "user.vintara.eth")
+     * @param amount Amount to borrow
+     */
+    function borrowWithENS(
+        string calldata ensName,
+        uint256 amount
+    ) external nonReentrant whenNotPaused {
+        if (amount == 0) revert InvalidAmount();
+
+        // Resolve ENS name to address
+        address resolvedAddress = ensResolver.resolveENSNameString(ensName);
+
+        // Use resolved address for borrowing
+        _updateInterest(resolvedAddress);
+
+        // Check if user has enough collateral
+        uint256 maxBorrow = positions[resolvedAddress]
+            .collateral
+            .mul(MAX_LTV)
+            .div(10000);
+        if (positions[resolvedAddress].borrowed.add(amount) > maxBorrow)
+            revert InsufficientCollateral();
+
+        // Check if protocol has enough liquidity
+        if (amount > _getAvailableLiquidity()) revert InsufficientLiquidity();
+
+        positions[resolvedAddress].borrowed = positions[resolvedAddress]
+            .borrowed
+            .add(amount);
+        totalBorrowed = totalBorrowed.add(amount);
+
+        // Transfer borrow token to msg.sender (the caller)
+        borrowToken.safeTransfer(msg.sender, amount);
+
+        emit Borrowed(resolvedAddress, amount);
+        emit ENSBorrowed(ensName, resolvedAddress, amount);
+    }
+
+    /**
+     * @dev Repay borrowed amount using ENS name
+     * @param ensName ENS name (e.g., "user.vintara.eth")
+     * @param amount Amount to repay
+     */
+    function repayWithENS(
+        string calldata ensName,
+        uint256 amount
+    ) external nonReentrant {
+        if (amount == 0) revert InvalidAmount();
+
+        // Resolve ENS name to address
+        address resolvedAddress = ensResolver.resolveENSNameString(ensName);
+
+        _updateInterest(resolvedAddress);
+
+        uint256 debt = positions[resolvedAddress].borrowed;
+        if (amount > debt) amount = debt;
+
+        positions[resolvedAddress].borrowed = debt.sub(amount);
+        totalBorrowed = totalBorrowed.sub(amount);
+
+        // Transfer borrow token from msg.sender (the caller)
+        borrowToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        emit Repaid(resolvedAddress, amount);
+        emit ENSRepaid(ensName, resolvedAddress, amount);
+    }
+
+    /**
      * @dev Get user's health factor
      * @param user User address
      * @return healthFactor Health factor in basis points
@@ -304,9 +463,14 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         );
         if (timeElapsed == 0) return;
 
+        // Use dynamic borrow rate if available, otherwise use base rate
+        uint256 currentBorrowRate = dynamicBorrowRate > 0
+            ? dynamicBorrowRate
+            : borrowRate;
+
         uint256 interest = positions[user]
             .borrowed
-            .mul(borrowRate)
+            .mul(currentBorrowRate)
             .mul(timeElapsed)
             .div(365 days)
             .div(10000);

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { EnhancedLendingForm } from "@/components/ui/EnhancedLendingForm";
 import {
   TrendingUp,
   TrendingDown,
@@ -111,8 +112,13 @@ export default function Lending() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Lending Interface */}
+        {/* Enhanced Lending Interface */}
         <div className="lg:col-span-1 space-y-6">
+          <EnhancedLendingForm />
+        </div>
+
+        {/* Original Lending Interface (for comparison) */}
+        <div className="lg:col-span-1 space-y-6 hidden">
           <Card className="p-6 card-gradient border-border/40">
             <Tabs defaultValue="supply" className="w-full">
               <TabsList className="grid w-full grid-cols-2">

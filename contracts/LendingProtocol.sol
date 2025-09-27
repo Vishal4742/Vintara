@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./PythOracle.sol";
-import "./ENSResolver.sol";
+import "./ChainlinkOracle.sol";
+import "./GraphIndexer.sol";
 
 /**
  * @title LendingProtocol
@@ -29,8 +29,8 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
     // State variables
     IERC20 public immutable rBTC;
     IERC20 public immutable borrowToken; // USDT or DAI
-    PythOracle public immutable pythOracle;
-    ENSResolver public immutable ensResolver;
+    ChainlinkOracle public immutable chainlinkOracle;
+    GraphIndexer public immutable graphIndexer;
 
     uint256 public totalBorrowed;
     uint256 public totalCollateral;
@@ -66,16 +66,8 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         uint256 newBorrowRate,
         uint256 newSupplyRate
     );
-    event ENSBorrowed(
-        string indexed ensName,
-        address indexed resolvedAddress,
-        uint256 amount
-    );
-    event ENSRepaid(
-        string indexed ensName,
-        address indexed resolvedAddress,
-        uint256 amount
-    );
+    event UserIndexed(address indexed user, uint256 totalBorrows, uint256 totalCollateral);
+    event ProtocolStatsUpdated(uint256 totalBorrowed, uint256 totalCollateral, uint256 activeUsers);
 
     // Errors
     error InsufficientCollateral();
@@ -87,13 +79,13 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
     constructor(
         address _rBTC,
         address _borrowToken,
-        address _pythOracle,
-        address _ensResolver
+        address _chainlinkOracle,
+        address _graphIndexer
     ) {
         rBTC = IERC20(_rBTC);
         borrowToken = IERC20(_borrowToken);
-        pythOracle = PythOracle(_pythOracle);
-        ensResolver = ENSResolver(_ensResolver);
+        chainlinkOracle = ChainlinkOracle(_chainlinkOracle);
+        graphIndexer = GraphIndexer(_graphIndexer);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
@@ -284,7 +276,7 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         external
         onlyRole(MANAGER_ROLE)
     {
-        try pythOracle.getRBTCToUSDTRatio() returns (uint256 ratio) {
+        try chainlinkOracle.getRBTCToUSDTRatio() returns (uint256 ratio) {
             // Base rates
             uint256 baseBorrowRate = borrowRate;
             uint256 baseSupplyRate = supplyRate;

@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./PythOracle.sol";
+import "./ChainlinkOracle.sol";
 
 /**
  * @title YieldVault
@@ -22,7 +22,7 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
 
     // State variables
     IERC20 public immutable rBTC;
-    PythOracle public immutable pythOracle;
+    ChainlinkOracle public immutable chainlinkOracle;
     uint256 public totalAssets;
     uint256 public totalSupply;
     uint256 public lastUpdateTime;
@@ -51,9 +51,9 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
     error Unauthorized();
     error TransferFailed();
 
-    constructor(address _rBTC, address _pythOracle) {
+    constructor(address _rBTC, address _chainlinkOracle) {
         rBTC = IERC20(_rBTC);
-        pythOracle = PythOracle(_pythOracle);
+        chainlinkOracle = ChainlinkOracle(_chainlinkOracle);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
         _grantRole(STRATEGY_ROLE, msg.sender);
@@ -199,9 +199,9 @@ contract YieldVault is ReentrancyGuard, Pausable, AccessControl {
         external
         onlyRole(MANAGER_ROLE)
     {
-        try pythOracle.getRBTCPrice() returns (int64 rbtcPrice) {
+        try chainlinkOracle.getRBTCPrice() returns (int256 rbtcPrice) {
             // Convert to uint256 for calculations
-            uint256 price = uint256(uint64(rbtcPrice));
+            uint256 price = uint256(rbtcPrice);
 
             // Base yield rate
             uint256 baseRate = yieldRate;

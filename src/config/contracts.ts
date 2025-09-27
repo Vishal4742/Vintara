@@ -17,8 +17,8 @@ export const CONTRACTS = {
   governance: "0x0000000000000000000000000000000000000000", // Will be updated after deployment
 
   // New integrations
-  pythOracle: "0x0000000000000000000000000000000000000000", // Will be updated after deployment
-  ensResolver: "0x0000000000000000000000000000000000000000", // Will be updated after deployment
+  chainlinkOracle: "0x0000000000000000000000000000000000000000", // Will be updated after deployment
+  graphIndexer: "0x0000000000000000000000000000000000000000", // Will be updated after deployment
 } as const;
 
 // Network configuration
@@ -58,36 +58,49 @@ export const CONTRACT_ABIS = {
   YieldFarming: [] as any[],
   PriceOracle: [] as any[],
   Governance: [] as any[],
-  PythOracle: [] as any[],
-  ENSResolver: [] as any[],
+  ChainlinkOracle: [] as any[],
+  GraphIndexer: [] as any[],
 } as const;
 
-// PyTH Network configuration
-export const PYTH_CONFIG = {
-  // PyTH price feed IDs
-  priceIds: {
-    rBTC: "0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
-    usdt: "0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b",
+// Chainlink configuration
+export const CHAINLINK_CONFIG = {
+  // Chainlink price feed addresses for Rootstock
+  priceFeeds: {
+    rBTC: "0x0000000000000000000000000000000000000000", // Will be set after deployment
+    usdt: "0x0000000000000000000000000000000000000000", // Will be set after deployment
   },
-  // Hermes endpoint
-  hermesEndpoint: "https://hermes.pyth.network/v2/updates/price/latest",
   // Price update interval (in seconds)
   updateInterval: 30,
   // Maximum price age (in seconds)
-  maxPriceAge: 300, // 5 minutes
+  maxPriceAge: 3600, // 1 hour
+  // Fallback price sources
+  fallbackSources: {
+    coingecko: "https://api.coingecko.com/api/v3/simple/price",
+    coinmarketcap:
+      "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest",
+  },
 } as const;
 
-// ENS configuration
-export const ENS_CONFIG = {
-  // ENS registry addresses
-  registry: {
-    mainnet: "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
-    testnet: "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e", // Same as mainnet
+// The Graph Protocol configuration
+export const GRAPH_CONFIG = {
+  // The Graph subgraph endpoints
+  subgraphs: {
+    protocol: "https://api.thegraph.com/subgraphs/name/vintara/protocol",
+    user: "https://api.thegraph.com/subgraphs/name/vintara/users",
+    analytics: "https://api.thegraph.com/subgraphs/name/vintara/analytics",
   },
-  // Supported TLDs
-  supportedTlds: [".eth", ".vintara.eth"],
-  // Default resolver
-  defaultResolver: "0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41",
+  // Query configuration
+  queryConfig: {
+    timeout: 30000, // 30 seconds
+    retries: 3,
+    cacheTime: 300000, // 5 minutes
+  },
+  // Indexing configuration
+  indexing: {
+    enabled: true,
+    updateInterval: 60, // 1 minute
+    batchSize: 100,
+  },
 } as const;
 
 // Protocol configuration
@@ -120,49 +133,45 @@ export const PROTOCOL_CONFIG = {
 
 // API endpoints
 export const API_ENDPOINTS = {
-  // ENS resolution
-  ens: {
-    resolve: "/api/ens/resolve",
-    reverse: "/api/ens/reverse",
-    validate: "/api/ens/validate",
+  // Chainlink price feeds
+  chainlink: {
+    prices: "/api/chainlink/prices",
+    feeds: "/api/chainlink/feeds",
   },
-  // PyTH price feeds
-  pyth: {
-    prices: "/api/pyth/prices",
+  // The Graph queries
+  graph: {
+    protocol: "/api/graph/protocol",
+    user: "/api/graph/user",
+    analytics: "/api/graph/analytics",
   },
-  // Protocol analytics
-  analytics: {
-    protocol: "/api/analytics/protocol",
-    user: "/api/analytics/user",
+  // Fallback price sources
+  prices: {
+    coingecko: "/api/prices/coingecko",
+    coinmarketcap: "/api/prices/coinmarketcap",
   },
 } as const;
 
 // Default values for testing
 export const DEFAULT_VALUES = {
-  // Test ENS names
-  testEnsNames: [
-    "alice.vintara.eth",
-    "bob.vintara.eth",
-    "charlie.vintara.eth",
-    "diana.vintara.eth",
-  ],
-  // Test addresses
+  // Test user addresses
   testAddresses: [
     "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
     "0x8ba1f109551bD432803012645Hac136c4c8b8b8",
     "0x1234567890123456789012345678901234567890",
     "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
   ],
-  // Mock prices
+  // Mock prices (fallback when Chainlink is unavailable)
   mockPrices: {
     rBTC: 45000, // $45,000
     usdt: 1.0, // $1.00
   },
+  // Test pool names
+  testPools: ["rBTC-USDT", "rBTC-ETH", "USDT-ETH"],
 } as const;
 
 // Export types
 export type ContractAddresses = typeof CONTRACTS;
 export type NetworkConfig = typeof NETWORKS;
 export type ProtocolConfig = typeof PROTOCOL_CONFIG;
-export type PythConfig = typeof PYTH_CONFIG;
-export type EnsConfig = typeof ENS_CONFIG;
+export type ChainlinkConfig = typeof CHAINLINK_CONFIG;
+export type GraphConfig = typeof GRAPH_CONFIG;

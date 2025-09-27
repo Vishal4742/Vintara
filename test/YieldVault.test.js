@@ -3,218 +3,221 @@ const { ethers } = require("hardhat");
 
 describe("YieldVault", function () {
   let yieldVault;
-  let rBTC;
+  let mockToken;
   let owner;
   let user1;
   let user2;
+  let treasury;
 
   beforeEach(async function () {
-    [owner, user1, user2] = await ethers.getSigners();
+    [owner, user1, user2, treasury] = await ethers.getSigners();
 
-    // Deploy mock rBTC token
+    // Deploy MockToken
     const MockToken = await ethers.getContractFactory("MockToken");
-    rBTC = await MockToken.deploy("Wrapped Bitcoin", "rBTC", 18);
-    await rBTC.deployed();
+    mockToken = await MockToken.deploy(
+      "Mock Token",
+      "MTK",
+      ethers.parseEther("1000000")
+    );
+    await mockToken.waitForDeployment();
 
     // Deploy YieldVault
     const YieldVault = await ethers.getContractFactory("YieldVault");
-    yieldVault = await YieldVault.deploy(rBTC.address);
-    await yieldVault.deployed();
+    yieldVault = await YieldVault.deploy(
+      await mockToken.getAddress(),
+      treasury.address,
+      ethers.parseEther("0.1") // 10% fee
+    );
+    await yieldVault.waitForDeployment();
 
-    // Mint some rBTC for testing
-    await rBTC.mint(owner.address, ethers.utils.parseEther("1000"));
-    await rBTC.mint(user1.address, ethers.utils.parseEther("100"));
-    await rBTC.mint(user2.address, ethers.utils.parseEther("100"));
+    // Transfer tokens to users for testing
+    await mockToken.transfer(user1.address, ethers.parseEther("1000"));
+    await mockToken.transfer(user2.address, ethers.parseEther("1000"));
+
+    // Approve vault to spend tokens
+    await mockToken
+      .connect(user1)
+      .approve(await yieldVault.getAddress(), ethers.parseEther("1000"));
+    await mockToken
+      .connect(user2)
+      .approve(await yieldVault.getAddress(), ethers.parseEther("1000"));
   });
 
   describe("Deployment", function () {
-    it("Should set the correct rBTC token address", async function () {
-      expect(await yieldVault.rBTC()).to.equal(rBTC.address);
+    it("Should set the correct token address", async function () {
+      expect(await yieldVault.token()).to.equal(await mockToken.getAddress());
     });
 
-    it("Should set the correct initial yield rate", async function () {
-      expect(await yieldVault.getCurrentAPY()).to.equal(1000); // 10%
+    it("Should set the correct treasury address", async function () {
+      expect(await yieldVault.treasury()).to.equal(treasury.address);
     });
 
-    it("Should set the correct initial values", async function () {
-      expect(await yieldVault.totalAssets()).to.equal(0);
-      expect(await yieldVault.totalSupply()).to.equal(0);
+    it("Should set the correct fee rate", async function () {
+      expect(await yieldVault.feeRate()).to.equal(ethers.parseEther("0.1"));
+    });
+
+    it("Should set the correct owner", async function () {
+      expect(await yieldVault.owner()).to.equal(owner.address);
     });
   });
 
   describe("Deposits", function () {
-    it("Should allow users to deposit rBTC", async function () {
-      const depositAmount = ethers.utils.parseEther("1");
+    it("Should allow users to deposit tokens", async function () {
+      const depositAmount = ethers.parseEther("100");
 
-      // Approve and deposit
-      await rBTC.connect(user1).approve(yieldVault.address, depositAmount);
-      await yieldVault.connect(user1).deposit(depositAmount);
+      await expect(yieldVault.connect(user1).deposit(depositAmount))
+        .to.emit(yieldVault, "Deposit")
+        .withArgs(user1.address, depositAmount);
 
-      // Check balances
-      expect(await yieldVault.balances(user1.address)).to.equal(depositAmount);
-      expect(await yieldVault.totalAssets()).to.equal(depositAmount);
+      expect(await yieldVault.balanceOf(user1.address)).to.equal(depositAmount);
       expect(await yieldVault.totalSupply()).to.equal(depositAmount);
     });
 
-    it("Should emit Deposit event", async function () {
-      const depositAmount = ethers.utils.parseEther("1");
-
-      await rBTC.connect(user1).approve(yieldVault.address, depositAmount);
-
-      await expect(yieldVault.connect(user1).deposit(depositAmount))
-        .to.emit(yieldVault, "Deposited")
-        .withArgs(user1.address, depositAmount, depositAmount);
+    it("Should not allow zero deposits", async function () {
+      await expect(yieldVault.connect(user1).deposit(0)).to.be.revertedWith(
+        "Amount must be greater than 0"
+      );
     });
 
-    it("Should reject zero amount deposits", async function () {
-      await expect(yieldVault.connect(user1).deposit(0)).to.be.revertedWith(
-        "InvalidAmount()"
-      );
+    it("Should not allow deposits when paused", async function () {
+      await yieldVault.pause();
+
+      await expect(
+        yieldVault.connect(user1).deposit(ethers.parseEther("100"))
+      ).to.be.revertedWith("Pausable: paused");
     });
   });
 
   describe("Withdrawals", function () {
     beforeEach(async function () {
-      // Setup: user1 deposits 1 rBTC
-      const depositAmount = ethers.utils.parseEther("1");
-      await rBTC.connect(user1).approve(yieldVault.address, depositAmount);
-      await yieldVault.connect(user1).deposit(depositAmount);
+      // User1 deposits 100 tokens
+      await yieldVault.connect(user1).deposit(ethers.parseEther("100"));
     });
 
-    it("Should allow users to withdraw their deposits", async function () {
-      const withdrawAmount = ethers.utils.parseEther("0.5");
-
-      await yieldVault.connect(user1).withdraw(withdrawAmount);
-
-      expect(await yieldVault.balances(user1.address)).to.equal(
-        ethers.utils.parseEther("0.5")
-      );
-      expect(await yieldVault.totalAssets()).to.equal(
-        ethers.utils.parseEther("0.5")
-      );
-      expect(await yieldVault.totalSupply()).to.equal(
-        ethers.utils.parseEther("0.5")
-      );
-    });
-
-    it("Should emit Withdrawn event", async function () {
-      const withdrawAmount = ethers.utils.parseEther("0.5");
+    it("Should allow users to withdraw their tokens", async function () {
+      const withdrawAmount = ethers.parseEther("50");
 
       await expect(yieldVault.connect(user1).withdraw(withdrawAmount))
-        .to.emit(yieldVault, "Withdrawn")
-        .withArgs(user1.address, withdrawAmount, withdrawAmount);
+        .to.emit(yieldVault, "Withdraw")
+        .withArgs(user1.address, withdrawAmount);
+
+      expect(await yieldVault.balanceOf(user1.address)).to.equal(
+        ethers.parseEther("50")
+      );
     });
 
-    it("Should reject withdrawals exceeding balance", async function () {
-      const withdrawAmount = ethers.utils.parseEther("2");
-
+    it("Should not allow withdrawals exceeding balance", async function () {
       await expect(
-        yieldVault.connect(user1).withdraw(withdrawAmount)
-      ).to.be.revertedWith("InvalidAmount()");
+        yieldVault.connect(user1).withdraw(ethers.parseEther("150"))
+      ).to.be.revertedWith("Insufficient balance");
+    });
+
+    it("Should not allow zero withdrawals", async function () {
+      await expect(yieldVault.connect(user1).withdraw(0)).to.be.revertedWith(
+        "Amount must be greater than 0"
+      );
     });
   });
 
   describe("Yield Generation", function () {
     beforeEach(async function () {
-      // Setup: user1 deposits 1 rBTC
-      const depositAmount = ethers.utils.parseEther("1");
-      await rBTC.connect(user1).approve(yieldVault.address, depositAmount);
-      await yieldVault.connect(user1).deposit(depositAmount);
+      // Users deposit tokens
+      await yieldVault.connect(user1).deposit(ethers.parseEther("100"));
+      await yieldVault.connect(user2).deposit(ethers.parseEther("200"));
     });
 
-    it("Should calculate yield correctly", async function () {
-      // Fast forward time by 1 day
-      await ethers.provider.send("evm_increaseTime", [86400]); // 1 day
-      await ethers.provider.send("evm_mine");
+    it("Should generate yield for depositors", async function () {
+      // Simulate yield by transferring tokens to vault
+      await mockToken.transfer(
+        await yieldVault.getAddress(),
+        ethers.parseEther("30")
+      );
 
-      const yield = await yieldVault.calculateYield(user1.address);
-      expect(yield).to.be.gt(0);
-    });
+      // Check that users can withdraw more than they deposited
+      const user1Balance = await yieldVault.balanceOf(user1.address);
+      const user2Balance = await yieldVault.balanceOf(user2.address);
 
-    it("Should allow users to claim yield", async function () {
-      // Fast forward time by 1 day
-      await ethers.provider.send("evm_increaseTime", [86400]);
-      await ethers.provider.send("evm_mine");
-
-      const yield = await yieldVault.calculateYield(user1.address);
-
-      if (yield.gt(0)) {
-        await expect(yieldVault.connect(user1).claimYield())
-          .to.emit(yieldVault, "YieldClaimed")
-          .withArgs(user1.address, yield);
-      }
+      expect(user1Balance).to.be.gt(ethers.parseEther("100"));
+      expect(user2Balance).to.be.gt(ethers.parseEther("200"));
     });
   });
 
   describe("Administrative Functions", function () {
-    it("Should allow manager to update yield rate", async function () {
-      const newRate = 1500; // 15%
-
-      await expect(yieldVault.updateYieldRate(newRate))
-        .to.emit(yieldVault, "YieldRateUpdated")
-        .withArgs(newRate);
-
-      expect(await yieldVault.getCurrentAPY()).to.equal(newRate);
-    });
-
-    it("Should allow admin to pause the contract", async function () {
+    it("Should allow owner to pause the contract", async function () {
       await yieldVault.pause();
       expect(await yieldVault.paused()).to.be.true;
     });
 
-    it("Should allow admin to unpause the contract", async function () {
+    it("Should allow owner to unpause the contract", async function () {
       await yieldVault.pause();
       await yieldVault.unpause();
       expect(await yieldVault.paused()).to.be.false;
     });
-  });
 
-  describe("Access Control", function () {
-    it("Should reject non-manager yield rate updates", async function () {
-      await expect(
-        yieldVault.connect(user1).updateYieldRate(1500)
-      ).to.be.revertedWith(
-        "AccessControl: account " +
-          user1.address.toLowerCase() +
-          " is missing role " +
-          (await yieldVault.MANAGER_ROLE())
+    it("Should not allow non-owner to pause", async function () {
+      await expect(yieldVault.connect(user1).pause()).to.be.revertedWith(
+        "Ownable: caller is not the owner"
       );
     });
 
-    it("Should reject non-admin pause operations", async function () {
-      await expect(yieldVault.connect(user1).pause()).to.be.revertedWith(
-        "AccessControl: account " +
-          user1.address.toLowerCase() +
-          " is missing role " +
-          (await yieldVault.DEFAULT_ADMIN_ROLE())
-      );
+    it("Should allow owner to update fee rate", async function () {
+      const newFeeRate = ethers.parseEther("0.05");
+      await yieldVault.setFeeRate(newFeeRate);
+      expect(await yieldVault.feeRate()).to.equal(newFeeRate);
+    });
+
+    it("Should not allow fee rate above 100%", async function () {
+      await expect(
+        yieldVault.setFeeRate(ethers.parseEther("1.1"))
+      ).to.be.revertedWith("Fee rate cannot exceed 100%");
+    });
+  });
+
+  describe("Access Control", function () {
+    it("Should not allow non-owner to set fee rate", async function () {
+      await expect(
+        yieldVault.connect(user1).setFeeRate(ethers.parseEther("0.05"))
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 
   describe("Edge Cases", function () {
-    it("Should handle multiple users correctly", async function () {
-      const depositAmount1 = ethers.utils.parseEther("1");
-      const depositAmount2 = ethers.utils.parseEther("2");
+    it("Should handle multiple deposits and withdrawals correctly", async function () {
+      // Multiple deposits
+      await yieldVault.connect(user1).deposit(ethers.parseEther("100"));
+      await yieldVault.connect(user1).deposit(ethers.parseEther("50"));
 
-      // User1 deposits
-      await rBTC.connect(user1).approve(yieldVault.address, depositAmount1);
-      await yieldVault.connect(user1).deposit(depositAmount1);
-
-      // User2 deposits
-      await rBTC.connect(user2).approve(yieldVault.address, depositAmount2);
-      await yieldVault.connect(user2).deposit(depositAmount2);
-
-      expect(await yieldVault.totalAssets()).to.equal(
-        ethers.utils.parseEther("3")
+      expect(await yieldVault.balanceOf(user1.address)).to.equal(
+        ethers.parseEther("150")
       );
-      expect(await yieldVault.totalSupply()).to.equal(
-        ethers.utils.parseEther("3")
+
+      // Partial withdrawal
+      await yieldVault.connect(user1).withdraw(ethers.parseEther("75"));
+      expect(await yieldVault.balanceOf(user1.address)).to.equal(
+        ethers.parseEther("75")
       );
     });
 
-    it("Should handle zero balance yield calculation", async function () {
-      const yield = await yieldVault.calculateYield(user1.address);
-      expect(yield).to.equal(0);
+    it("Should handle yield distribution correctly with multiple users", async function () {
+      // Users deposit different amounts
+      await yieldVault.connect(user1).deposit(ethers.parseEther("100"));
+      await yieldVault.connect(user2).deposit(ethers.parseEther("200"));
+
+      // Generate yield
+      await mockToken.transfer(
+        await yieldVault.getAddress(),
+        ethers.parseEther("30")
+      );
+
+      // Check proportional distribution
+      const user1Balance = await yieldVault.balanceOf(user1.address);
+      const user2Balance = await yieldVault.balanceOf(user2.address);
+
+      // User2 should have approximately 2x the balance of user1
+      expect(user2Balance).to.be.closeTo(
+        user1Balance * 2n,
+        ethers.parseEther("0.1")
+      );
     });
   });
 });

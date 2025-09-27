@@ -1,0 +1,24 @@
+{
+  "rootstock": {
+    "chainId": "0x1E",
+    "chainName": "Rootstock",
+    "nativeCurrency": {
+      "name": "Rootstock Bitcoin",
+      "symbol": "RBTC",
+      "decimals": 18
+    },
+    "rpcUrls": ["https://public-node.rsk.co"],
+    "blockExplorerUrls": ["https://explorer.rsk.co"]
+  },
+  "rootstockTestnet": {
+    "chainId": "0x1F",
+    "chainName": "Rootstock Testnet",
+    "nativeCurrency": {
+      "name": "Rootstock Bitcoin Testnet",
+      "symbol": "tRBTC",
+      "decimals": 18
+    },
+    "rpcUrls": ["https://public-node.testnet.rsk.co"],
+    "blockExplorerUrls": ["https://explorer.testnet.rsk.co"]
+  }
+}

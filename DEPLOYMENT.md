@@ -183,7 +183,7 @@ Before mainnet deployment:
 ### Getting Help
 
 - **Discord**: [Vintara Community](https://discord.gg/vintara)
-- **GitHub Issues**: [Create an issue](https://github.com/your-username/vintara/issues)
+- **GitHub Issues**: [Create an issue](https://github.com/aniketsahu115/vintara/issues)
 - **Documentation**: [Read the docs](https://docs.vintara.com)
 
 ## Post-Deployment

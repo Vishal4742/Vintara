@@ -1,33 +1,33 @@
-# 🚀 RSK API Setup Complete!
+# RSK API Setup Complete!
 
-## ✅ **Your RSK API Credentials Have Been Configured**
+## **Your RSK API Credentials Have Been Configured**
 
 I've successfully updated all the necessary files with your RSK API credentials:
 
-### **🔑 Your RSK API Details:**
+### **Your RSK API Details:**
 
 - **API Key**: `aHYduscUz7vhlRM1DHcieLdE9SfQ7K-T`
 - **RPC URL**: `https://rpc.testnet.rootstock.io/aHYduscUz7vhlRM1DHcieLdE9SfQ7K-T`
 - **WebSocket**: `wss://rpc.testnet.rootstock.io/aHYduscUz7vhlRM1DHcieLdE9SfQ7K-T`
 
-### **📁 Files Updated:**
+### **Files Updated:**
 
-1. **`hardhat.config.js`** ✅
+1. **`hardhat.config.js`**
 
    - Updated Rootstock Testnet RPC URL with your API key
    - Ready for contract deployment
 
-2. **`src/lib/wagmi.ts`** ✅
+2. **`src/lib/wagmi.ts`**
 
    - Updated RainbowKit configuration with your RPC URL
    - Fixed merge conflicts
    - Wallet connection will use your enhanced RPC
 
-3. **`src/components/ui/NetworkSetup.tsx`** ✅
+3. **`src/components/ui/NetworkSetup.tsx`**
    - Updated network setup component
    - Users will automatically get your RPC URL when adding Rootstock Testnet
 
-### **🔧 Create Your .env File:**
+### **Create Your .env File:**
 
 Create a `.env` file in your project root with these essential variables:
 
@@ -47,7 +47,7 @@ RSK_WS_URL=wss://rpc.testnet.rootstock.io/aHYduscUz7vhlRM1DHcieLdE9SfQ7K-T
 RSK_BLOCKEXPLORER_API_KEY=your_blockexplorer_api_key_here
 ```
 
-### **🚀 Next Steps:**
+### **Next Steps:**
 
 1. **Get your private key:**
 
@@ -72,7 +72,7 @@ RSK_BLOCKEXPLORER_API_KEY=your_blockexplorer_api_key_here
    npm run dev
    ```
 
-### **🎯 Benefits of Your RSK API:**
+### **Benefits of Your RSK API:**
 
 - **Enhanced Performance**: Your dedicated RPC endpoint
 - **Higher Rate Limits**: Better than public endpoints
@@ -80,7 +80,7 @@ RSK_BLOCKEXPLORER_API_KEY=your_blockexplorer_api_key_here
 - **WebSocket Support**: Real-time updates
 - **Better for Production**: Professional-grade infrastructure
 
-### **🔍 Testing Your Setup:**
+### **Testing Your Setup:**
 
 1. **Test RPC Connection:**
 
@@ -100,15 +100,15 @@ RSK_BLOCKEXPLORER_API_KEY=your_blockexplorer_api_key_here
    npm run deploy:testnet
    ```
 
-### **📊 Your Configuration Summary:**
+### **Your Configuration Summary:**
 
-- ✅ **Hardhat**: Configured with your RPC URL
-- ✅ **RainbowKit**: Configured with your RPC URL
-- ✅ **Network Setup**: Users get your RPC URL automatically
-- ✅ **WalletConnect**: Project ID configured
-- ✅ **Ready for Deployment**: All systems go!
+- **Hardhat**: Configured with your RPC URL
+- **RainbowKit**: Configured with your RPC URL
+- **Network Setup**: Users get your RPC URL automatically
+- **WalletConnect**: Project ID configured
+- **Ready for Deployment**: All systems go!
 
-### **🏆 Hackathon Ready:**
+### **Hackathon Ready:**
 
 Your Vintara protocol is now configured with professional-grade RSK infrastructure:
 
@@ -117,16 +117,16 @@ Your Vintara protocol is now configured with professional-grade RSK infrastructu
 - **Network Setup**: Automatic configuration
 - **Deployment Ready**: All systems configured
 
-**You're ready to deploy and submit your hackathon project! 🎉**
+**You're ready to deploy and submit your hackathon project!**
 
-### **🔗 Useful Links:**
+### **Useful Links:**
 
 - **RSK Faucet**: https://faucet.rsk.co
 - **RSK Explorer**: https://explorer.testnet.rsk.co
 - **RSK Documentation**: https://developers.rsk.co
 - **WalletConnect**: https://cloud.walletconnect.com
 
-### **⚠️ Security Notes:**
+### **Security Notes:**
 
 - Never commit your `.env` file to Git
 - Use a test wallet for development

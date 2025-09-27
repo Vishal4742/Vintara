@@ -3,142 +3,192 @@ const { ethers } = require("hardhat");
 async function main() {
   console.log("🚀 Starting Vintara deployment on Rootstock...");
 
-  // Get the deployer account
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with account:", deployer.address);
-  console.log("Account balance:", (await deployer.getBalance()).toString());
+  console.log(
+    "Account balance:",
+    (await deployer.provider.getBalance(deployer.address)).toString()
+  );
 
-  // Deploy mock tokens for testing
-  console.log("\n📦 Deploying mock tokens...");
-
+  // Deploy MockToken for testing
+  console.log("\n📦 Deploying MockToken...");
   const MockToken = await ethers.getContractFactory("MockToken");
-  const rBTC = await MockToken.deploy("Wrapped Bitcoin", "rBTC", 18);
-  await rBTC.deployed();
-  console.log("rBTC deployed to:", rBTC.address);
-
-  const usdt = await MockToken.deploy("Tether USD", "USDT", 6);
-  await usdt.deployed();
-  console.log("USDT deployed to:", usdt.address);
-
-  const vint = await MockToken.deploy("Vintara Token", "VINT", 18);
-  await vint.deployed();
-  console.log("VINT deployed to:", vint.address);
-
-  // Deploy PriceOracle
-  console.log("\n🔮 Deploying PriceOracle...");
-  const PriceOracle = await ethers.getContractFactory("PriceOracle");
-  const priceOracle = await PriceOracle.deploy();
-  await priceOracle.deployed();
-  console.log("PriceOracle deployed to:", priceOracle.address);
+  const mockToken = await MockToken.deploy(
+    "Vintara Test Token",
+    "VTT",
+    ethers.parseEther("1000000") // 1M tokens
+  );
+  await mockToken.waitForDeployment();
+  console.log("MockToken deployed to:", await mockToken.getAddress());
 
   // Deploy YieldVault
   console.log("\n🏦 Deploying YieldVault...");
   const YieldVault = await ethers.getContractFactory("YieldVault");
-  const yieldVault = await YieldVault.deploy(rBTC.address);
-  await yieldVault.deployed();
-  console.log("YieldVault deployed to:", yieldVault.address);
+  const yieldVault = await YieldVault.deploy(
+    await mockToken.getAddress(),
+    deployer.address, // Treasury
+    ethers.parseEther("0.1") // 10% fee
+  );
+  await yieldVault.waitForDeployment();
+  console.log("YieldVault deployed to:", await yieldVault.getAddress());
 
   // Deploy LendingProtocol
   console.log("\n💰 Deploying LendingProtocol...");
   const LendingProtocol = await ethers.getContractFactory("LendingProtocol");
-  const lendingProtocol = await LendingProtocol.deploy(
-    rBTC.address,
-    usdt.address
+  const lendingProtocol = await LendingProtocol.deploy();
+  await lendingProtocol.waitForDeployment();
+  console.log(
+    "LendingProtocol deployed to:",
+    await lendingProtocol.getAddress()
   );
-  await lendingProtocol.deployed();
-  console.log("LendingProtocol deployed to:", lendingProtocol.address);
 
   // Deploy LiquidityPool
   console.log("\n🔄 Deploying LiquidityPool...");
   const LiquidityPool = await ethers.getContractFactory("LiquidityPool");
-  const liquidityPool = await LiquidityPool.deploy(rBTC.address, usdt.address);
-  await liquidityPool.deployed();
-  console.log("LiquidityPool deployed to:", liquidityPool.address);
+  const liquidityPool = await LiquidityPool.deploy(
+    await mockToken.getAddress(),
+    await mockToken.getAddress(), // Using same token for simplicity
+    ethers.parseEther("0.003") // 0.3% fee
+  );
+  await liquidityPool.waitForDeployment();
+  console.log("LiquidityPool deployed to:", await liquidityPool.getAddress());
 
   // Deploy YieldFarming
   console.log("\n🌾 Deploying YieldFarming...");
   const YieldFarming = await ethers.getContractFactory("YieldFarming");
-  const yieldFarming = await YieldFarming.deploy(vint.address);
-  await yieldFarming.deployed();
-  console.log("YieldFarming deployed to:", yieldFarming.address);
+  const yieldFarming = await YieldFarming.deploy(
+    await mockToken.getAddress(), // Reward token
+    ethers.parseEther("1000"), // Reward per block
+    100 // Block duration
+  );
+  await yieldFarming.waitForDeployment();
+  console.log("YieldFarming deployed to:", await yieldFarming.getAddress());
+
+  // Deploy PriceOracle
+  console.log("\n📊 Deploying PriceOracle...");
+  const PriceOracle = await ethers.getContractFactory("PriceOracle");
+  const priceOracle = await PriceOracle.deploy();
+  await priceOracle.waitForDeployment();
+  console.log("PriceOracle deployed to:", await priceOracle.getAddress());
 
   // Deploy Governance
   console.log("\n🗳️ Deploying Governance...");
   const Governance = await ethers.getContractFactory("Governance");
-  const governance = await Governance.deploy(vint.address);
-  await governance.deployed();
-  console.log("Governance deployed to:", governance.address);
-
-  // Initialize contracts
-  console.log("\n⚙️ Initializing contracts...");
-
-  // Add LP pool to yield farming
-  await yieldFarming.addPool(liquidityPool.address, 1000, false);
-  console.log("Added LP pool to yield farming");
-
-  // Set initial prices in oracle
-  await priceOracle.updatePrice(
-    rBTC.address,
-    ethers.utils.parseUnits("50000", 8),
-    9500
+  const governance = await Governance.deploy(
+    await mockToken.getAddress(), // Governance token
+    100, // Voting period
+    10, // Quorum
+    50 // Threshold
   );
-  await priceOracle.updatePrice(
-    usdt.address,
-    ethers.utils.parseUnits("1", 8),
-    9800
-  );
-  await priceOracle.updatePrice(
-    vint.address,
-    ethers.utils.parseUnits("0.1", 8),
-    9000
-  );
-  console.log("Set initial prices in oracle");
+  await governance.waitForDeployment();
+  console.log("Governance deployed to:", await governance.getAddress());
 
-  // Mint some tokens for testing
-  await rBTC.mint(deployer.address, ethers.utils.parseEther("100"));
-  await usdt.mint(deployer.address, ethers.utils.parseUnits("100000", 6));
-  await vint.mint(deployer.address, ethers.utils.parseEther("1000000"));
-  console.log("Minted test tokens");
+  // Configure contracts
+  console.log("\n⚙️ Configuring contracts...");
+
+  // Add supported tokens to lending protocol
+  await lendingProtocol.addSupportedToken(
+    await mockToken.getAddress(),
+    ethers.parseEther("0.8"), // 80% collateral factor
+    ethers.parseEther("0.1") // 10% interest rate
+  );
+  console.log("✅ Added supported token to lending protocol");
+
+  // Set price feeds in oracle
+  await priceOracle.setPriceFeed(
+    await mockToken.getAddress(),
+    ethers.parseEther("1") // $1 price
+  );
+  console.log("✅ Set price feed in oracle");
+
+  // Transfer some tokens to contracts for initial liquidity
+  await mockToken.transfer(
+    await yieldVault.getAddress(),
+    ethers.parseEther("10000")
+  );
+  await mockToken.transfer(
+    await liquidityPool.getAddress(),
+    ethers.parseEther("5000")
+  );
+  console.log("✅ Transferred initial tokens to contracts");
+
+  // Verify deployments
+  console.log("\n🔍 Verifying deployments...");
+  try {
+    await hre.run("verify:verify", {
+      address: await mockToken.getAddress(),
+      constructorArguments: [
+        "Vintara Test Token",
+        "VTT",
+        ethers.parseEther("1000000"),
+      ],
+    });
+    console.log("✅ MockToken verified");
+  } catch (error) {
+    console.log("❌ MockToken verification failed:", error.message);
+  }
 
   // Save deployment info
   const deploymentInfo = {
-    network: "rootstockTestnet",
+    network: hre.network.name,
+    chainId: hre.network.config.chainId,
     deployer: deployer.address,
     contracts: {
-      rBTC: rBTC.address,
-      usdt: usdt.address,
-      vint: vint.address,
-      priceOracle: priceOracle.address,
-      yieldVault: yieldVault.address,
-      lendingProtocol: lendingProtocol.address,
-      liquidityPool: liquidityPool.address,
-      yieldFarming: yieldFarming.address,
-      governance: governance.address,
+      MockToken: await mockToken.getAddress(),
+      YieldVault: await yieldVault.getAddress(),
+      LendingProtocol: await lendingProtocol.getAddress(),
+      LiquidityPool: await liquidityPool.getAddress(),
+      YieldFarming: await yieldFarming.getAddress(),
+      PriceOracle: await priceOracle.getAddress(),
+      Governance: await governance.getAddress(),
     },
     timestamp: new Date().toISOString(),
   };
 
-  console.log("\n📋 Deployment Summary:");
-  console.log("====================");
-  console.log(JSON.stringify(deploymentInfo, null, 2));
+  const fs = require("fs");
+  const path = require("path");
+  const deploymentPath = path.join(
+    __dirname,
+    "..",
+    "deployments",
+    `${hre.network.name}.json`
+  );
+
+  // Create deployments directory if it doesn't exist
+  const deploymentsDir = path.dirname(deploymentPath);
+  if (!fs.existsSync(deploymentsDir)) {
+    fs.mkdirSync(deploymentsDir, { recursive: true });
+  }
+
+  fs.writeFileSync(deploymentPath, JSON.stringify(deploymentInfo, null, 2));
+  console.log(`📄 Deployment info saved to: ${deploymentPath}`);
 
   console.log("\n✅ Vintara deployment completed successfully!");
-  console.log("\n🔗 Contract Addresses:");
-  console.log("rBTC Token:", rBTC.address);
-  console.log("USDT Token:", usdt.address);
-  console.log("VINT Token:", vint.address);
-  console.log("PriceOracle:", priceOracle.address);
-  console.log("YieldVault:", yieldVault.address);
-  console.log("LendingProtocol:", lendingProtocol.address);
-  console.log("LiquidityPool:", liquidityPool.address);
-  console.log("YieldFarming:", yieldFarming.address);
-  console.log("Governance:", governance.address);
+  console.log("\n📋 Deployment Summary:");
+  console.log("====================");
+  console.log(`Network: ${deploymentInfo.network}`);
+  console.log(`Chain ID: ${deploymentInfo.chainId}`);
+  console.log(`Deployer: ${deploymentInfo.deployer}`);
+  console.log("\nContract Addresses:");
+  Object.entries(deploymentInfo.contracts).forEach(([name, address]) => {
+    console.log(`${name}: ${address}`);
+  });
 
-  console.log("\n📝 Next Steps:");
-  console.log("1. Verify contracts on RSK Explorer");
-  console.log("2. Update frontend with contract addresses");
-  console.log("3. Test all contract functions");
-  console.log("4. Deploy to mainnet when ready");
+  console.log("\n🔗 Explorer Links:");
+  const explorerUrl =
+    hre.network.name === "rootstockTestnet"
+      ? "https://explorer.testnet.rsk.co"
+      : "https://explorer.rsk.co";
+
+  Object.entries(deploymentInfo.contracts).forEach(([name, address]) => {
+    console.log(`${name}: ${explorerUrl}/address/${address}`);
+  });
+
+  console.log("\n🎉 Ready for testing! You can now:");
+  console.log("1. Test the contracts using the deployed addresses");
+  console.log("2. Interact with the frontend using these contract addresses");
+  console.log("3. Verify contracts on the block explorer");
+  console.log("4. Submit your hackathon project!");
 }
 
 main()

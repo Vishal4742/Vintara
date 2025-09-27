@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ConnectWallet } from "@/components/ui/ConnectWallet";
+<<<<<<< HEAD
 import { Menu, X, Wallet } from "lucide-react";
+=======
+import { Menu, X } from "lucide-react";
+>>>>>>> feature1
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard" },

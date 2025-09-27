@@ -1,7 +1,11 @@
 import { Card } from "./card";
 import { AddNetworkButton } from "./AddNetworkButton";
 import { Alert, AlertDescription } from "./alert";
+<<<<<<< HEAD
 import { Info, CheckCircle } from "lucide-react";
+=======
+import { Info, ExternalLink } from "lucide-react";
+>>>>>>> feature1
 
 export function NetworkSetup() {
   return (
@@ -34,7 +38,11 @@ export function NetworkSetup() {
                   className="text-bitcoin hover:underline flex items-center space-x-1"
                 >
                   <span>Get Testnet RBTC</span>
+<<<<<<< HEAD
                   <CheckCircle className="h-3 w-3" />
+=======
+                  <ExternalLink className="h-3 w-3" />
+>>>>>>> feature1
                 </a>
               </div>
             </div>

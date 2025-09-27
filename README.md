@@ -289,9 +289,8 @@ function calculateAPY(uint256 principal, uint256 rewards, uint256 timeStaked)
 ## Contact
 
 - **Website**: [https://vintara.vercel.app](https://vintara.vercel.app)
-- **GitHub**: [https://github.com/your-username/vintara](https://github.com/your-username/vintara)
-- **Twitter**: [@Vintara](https://twitter.com/Vintara)
-- **Discord**: [Vintara Community](https://discord.gg/vintara)
+- **GitHub**: [https://github.com/your-username/vintara](https://github.com/aniketsahu115/vintara)
+- **Twitter**: [@Vintarastock](https://twitter.com/Vintarastock)
 
 ## License
 

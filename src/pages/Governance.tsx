@@ -91,9 +91,9 @@ export default function Governance() {
   const proposals: Proposal[] = [
     {
       id: 1,
-      title: "Increase Yield Vault APY to 25%",
+      title: "Increase Yield Vault APY to 15%",
       description:
-        "Proposal to increase the base APY for the main yield vault from 20% to 25% to attract more liquidity and compete with other protocols.",
+        "Proposal to increase the base APY for the main yield vault from 12% to 15% to attract more liquidity and compete with other protocols.",
       proposer: "0x1234...5678",
       status: "active",
       startTime: Date.now() - 86400000, // 1 day ago
@@ -624,19 +624,19 @@ export default function Governance() {
               <h3 className="text-lg font-semibold">Treasury Overview</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-bitcoin">$2.4M</div>
+                  <div className="text-2xl font-bold text-bitcoin">$240K</div>
                   <div className="text-sm text-muted-foreground">
                     Total Treasury
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-success">$180K</div>
+                  <div className="text-2xl font-bold text-success">$18K</div>
                   <div className="text-sm text-muted-foreground">
                     Available for Proposals
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-warning">$45K</div>
+                  <div className="text-2xl font-bold text-warning">$4.5K</div>
                   <div className="text-sm text-muted-foreground">
                     Pending Allocations
                   </div>
@@ -767,7 +767,7 @@ export default function Governance() {
                     <div>
                       <h4 className="font-medium">Twitter</h4>
                       <p className="text-sm text-muted-foreground">
-                        15.2K followers
+                        520 followers
                       </p>
                     </div>
                   </div>

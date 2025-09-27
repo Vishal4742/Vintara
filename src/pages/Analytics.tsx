@@ -30,18 +30,18 @@ export default function Analytics() {
 
   // Mock data for analytics
   const protocolStats = {
-    tvl: "$47.2M",
-    tvlChange: "+12.5%",
-    totalUsers: "1,247",
-    userChange: "+8.2%",
-    totalVolume: "$125.4M",
-    volumeChange: "+23.1%",
-    avgAPY: "42.3%",
-    apyChange: "-2.1%",
-    totalFees: "$2.8M",
-    feesChange: "+15.7%",
-    activePools: 12,
-    poolsChange: "+2",
+    tvl: "$2.1M",
+    tvlChange: "+8.5%",
+    totalUsers: "156",
+    userChange: "+12.2%",
+    totalVolume: "$5.4M",
+    volumeChange: "+15.1%",
+    avgAPY: "12.4%",
+    apyChange: "+1.3%",
+    totalFees: "$28K",
+    feesChange: "+9.7%",
+    activePools: 6,
+    poolsChange: "+1",
   };
 
   // Historical data for charts
@@ -79,29 +79,29 @@ export default function Analytics() {
   const performanceMetrics = [
     {
       name: "Total Return",
-      value: "342.7%",
-      change: "+12.3%",
+      value: "18.7%",
+      change: "+3.2%",
       period: "1Y",
       trend: "up",
     },
     {
       name: "Sharpe Ratio",
-      value: "2.84",
-      change: "+0.15",
+      value: "1.24",
+      change: "+0.08",
       period: "1Y",
       trend: "up",
     },
     {
       name: "Max Drawdown",
-      value: "-8.2%",
-      change: "-1.1%",
+      value: "-12.1%",
+      change: "-0.8%",
       period: "1Y",
       trend: "down",
     },
     {
       name: "Volatility",
-      value: "24.3%",
-      change: "-2.1%",
+      value: "16.4%",
+      change: "-1.2%",
       period: "1Y",
       trend: "down",
     },
@@ -109,22 +109,22 @@ export default function Analytics() {
 
   // Token distribution
   const tokenDistribution = [
-    { token: "rBTC", percentage: 45.2, value: "$21.3M", change: "+5.2%" },
-    { token: "USDT", percentage: 28.7, value: "$13.5M", change: "+2.1%" },
-    { token: "VINT", percentage: 15.8, value: "$7.4M", change: "+8.9%" },
-    { token: "ETH", percentage: 6.3, value: "$3.0M", change: "-1.2%" },
-    { token: "Others", percentage: 4.0, value: "$1.9M", change: "+0.8%" },
+    { token: "rBTC", percentage: 45.2, value: "$950K", change: "+5.2%" },
+    { token: "USDT", percentage: 28.7, value: "$602K", change: "+2.1%" },
+    { token: "VINT", percentage: 15.8, value: "$332K", change: "+8.9%" },
+    { token: "ETH", percentage: 6.3, value: "$132K", change: "-1.2%" },
+    { token: "Others", percentage: 4.0, value: "$84K", change: "+0.8%" },
   ];
 
   // Protocol comparison
   const protocolComparison = [
     {
       protocol: "Vintara",
-      tvl: "$47.2M",
-      apy: "42.3%",
-      users: "1,247",
-      volume: "$125.4M",
-      fees: "$2.8M",
+      tvl: "$2.1M",
+      apy: "12.4%",
+      users: "156",
+      volume: "$5.4M",
+      fees: "$28K",
     },
     {
       protocol: "Compound",
@@ -153,10 +153,10 @@ export default function Analytics() {
   ];
 
   const yieldMetrics = [
-    { name: "Yield Vault", tvl: "$18.5M", apy: "15.2%", change: "+5.2%" },
-    { name: "Lending Protocol", tvl: "$12.3M", apy: "8.5%", change: "+2.1%" },
-    { name: "Liquidity Pools", tvl: "$10.8M", apy: "23.7%", change: "+8.9%" },
-    { name: "Yield Farming", tvl: "$5.6M", apy: "67.8%", change: "+12.3%" },
+    { name: "Yield Vault", tvl: "$850K", apy: "15.2%", change: "+5.2%" },
+    { name: "Lending Protocol", tvl: "$620K", apy: "8.5%", change: "+2.1%" },
+    { name: "Liquidity Pools", tvl: "$430K", apy: "18.7%", change: "+8.9%" },
+    { name: "Yield Farming", tvl: "$200K", apy: "22.8%", change: "+12.3%" },
   ];
 
   const topPools = [

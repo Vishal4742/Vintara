@@ -28,8 +28,8 @@ export default function Dashboard() {
       id: 1,
       type: "Deposit",
       token: "BTC",
-      amount: "0.5",
-      value: "$21,500",
+      amount: "0.05",
+      value: "$2,150",
       status: "completed",
       time: "2 minutes ago",
     },
@@ -37,8 +37,8 @@ export default function Dashboard() {
       id: 2,
       type: "Yield Claim",
       token: "VINT",
-      amount: "125.50",
-      value: "$892",
+      amount: "12.50",
+      value: "$89",
       status: "completed",
       time: "1 hour ago",
     },
@@ -46,8 +46,8 @@ export default function Dashboard() {
       id: 3,
       type: "Swap",
       token: "BTC → ETH",
-      amount: "0.2",
-      value: "$8,600",
+      amount: "0.02",
+      value: "$860",
       status: "pending",
       time: "3 hours ago",
     },
@@ -55,8 +55,8 @@ export default function Dashboard() {
       id: 4,
       type: "LP Add",
       token: "BTC-USDT",
-      amount: "1,000",
-      value: "$1,000",
+      amount: "500",
+      value: "$500",
       status: "completed",
       time: "1 day ago",
     },
@@ -87,31 +87,31 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
               title="Portfolio Balance"
-              value="$47,832.50"
+              value="$4,832.50"
               subtitle="Total value"
               icon={<DollarSign className="h-5 w-5" />}
               trend="up"
-              trendValue="12.5%"
+              trendValue="8.5%"
             />
             <StatCard
               title="Active Liquidity"
-              value="$23,450.00"
+              value="$2,345.00"
               subtitle="In liquidity pools"
               icon={<Activity className="h-5 w-5" />}
               trend="up"
-              trendValue="5.2%"
+              trendValue="3.2%"
             />
             <StatCard
               title="Total Yield Earned"
-              value="$3,267.89"
+              value="$326.89"
               subtitle="All time"
               icon={<TrendingUp className="h-5 w-5" />}
               trend="up"
-              trendValue="189%"
+              trendValue="18.9%"
             />
             <StatCard
               title="Average APY"
-              value="42.3%"
+              value="12.4%"
               subtitle="Current rate"
               icon={<TrendingUp className="h-5 w-5" />}
               trend="neutral"

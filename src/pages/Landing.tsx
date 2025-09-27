@@ -32,12 +32,19 @@ export default function Landing() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" variant="bitcoin">
-                <Link to="/dashboard" className="flex items-center space-x-2">
+                <Link to="/yield" className="flex items-center space-x-2">
                   <span>Launch App</span>
                   <ArrowRight className="h-5 w-5" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => {
+                  const featuresSection = document.getElementById("features");
+                  featuresSection?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
                 Learn More
               </Button>
             </div>
@@ -80,7 +87,7 @@ export default function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 lg:py-32">
+      <section id="features" className="py-24 lg:py-32">
         <div className="container">
           <div className="mx-auto max-w-2xl text-center space-y-4 mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold">
@@ -96,47 +103,58 @@ export default function Landing() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <Card className="p-6 card-gradient border-border/40 text-center space-y-4">
+            <Card
+              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-colors cursor-pointer"
+              onClick={() => (window.location.href = "/yield")}
+            >
               <div className="h-12 w-12 rounded-lg bg-bitcoin/10 flex items-center justify-center text-bitcoin mx-auto">
                 <TrendingUp className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-semibold">Native Bitcoin Yield</h3>
+              <h3 className="text-lg font-semibold">Yield Farming</h3>
               <p className="text-sm text-muted-foreground">
-                Earn yield directly in Bitcoin through our automated lending and
-                liquidity protocols.
+                Stake tokens and LP positions to earn high yields with automated
+                strategies.
               </p>
             </Card>
 
-            <Card className="p-6 card-gradient border-border/40 text-center space-y-4">
+            <Card
+              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-colors cursor-pointer"
+              onClick={() => (window.location.href = "/lending")}
+            >
               <div className="h-12 w-12 rounded-lg bg-bitcoin/10 flex items-center justify-center text-bitcoin mx-auto">
                 <Shield className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-semibold">Bitcoin Security</h3>
+              <h3 className="text-lg font-semibold">Lending Protocol</h3>
               <p className="text-sm text-muted-foreground">
-                Protected by Bitcoin's hash power through Rootstock's merged
-                mining security model.
+                Borrow against Bitcoin collateral or supply liquidity to earn
+                interest.
               </p>
             </Card>
 
-            <Card className="p-6 card-gradient border-border/40 text-center space-y-4">
+            <Card
+              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-colors cursor-pointer"
+              onClick={() => (window.location.href = "/swap")}
+            >
               <div className="h-12 w-12 rounded-lg bg-bitcoin/10 flex items-center justify-center text-bitcoin mx-auto">
                 <Zap className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-semibold">EVM Compatible</h3>
+              <h3 className="text-lg font-semibold">DEX Aggregator</h3>
               <p className="text-sm text-muted-foreground">
-                Full Ethereum compatibility on Bitcoin with familiar tools and
-                infrastructure.
+                Trade tokens with optimal prices across multiple liquidity
+                sources.
               </p>
             </Card>
 
-            <Card className="p-6 card-gradient border-border/40 text-center space-y-4">
+            <Card
+              className="p-6 card-gradient border-border/40 text-center space-y-4 hover:border-bitcoin/20 transition-colors cursor-pointer"
+              onClick={() => (window.location.href = "/liquidity")}
+            >
               <div className="h-12 w-12 rounded-lg bg-bitcoin/10 flex items-center justify-center text-bitcoin mx-auto">
                 <Users className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-semibold">DAO Governance</h3>
+              <h3 className="text-lg font-semibold">Liquidity Pools</h3>
               <p className="text-sm text-muted-foreground">
-                Community-driven protocol governance with VINT token voting and
-                transparent proposals.
+                Provide liquidity to earn trading fees and additional rewards.
               </p>
             </Card>
           </div>
@@ -209,7 +227,7 @@ export default function Landing() {
             </div>
 
             <Button asChild size="lg" variant="bitcoin">
-              <Link to="/dashboard" className="flex items-center space-x-2">
+              <Link to="/yield" className="flex items-center space-x-2">
                 <span>Launch App</span>
                 <ArrowRight className="h-5 w-5" />
               </Link>

@@ -17,6 +17,88 @@ Vintara is a revolutionary DeFi protocol built on Rootstock (RSK), Bitcoin's lon
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    subgraph App["Application Layer"]
+        direction TB
+        UI[Web Interface]
+        API[API Gateway]
+        style UI fill:#88C0D0,color:#000000
+        style API fill:#88C0D0,color:#000000
+    end
+
+    subgraph Serv["Services Layer"]
+        direction TB
+        DAO[DAO Governance]
+        Oracle[Price Oracles]
+        Wallet[Wallet Integration]
+        style DAO fill:#F4A261,color:#000000
+        style Oracle fill:#F4A261,color:#000000
+        style Wallet fill:#F4A261,color:#000000
+    end
+
+    subgraph Proto["Protocol Layer"]
+        direction TB
+        Consensus[Consensus Mechanism]
+        Sidechain[Sidechain Bridge]
+        VM[Virtual Machine]
+        style Consensus fill:#4C566A,color:#ffffff
+        style Sidechain fill:#4C566A,color:#ffffff
+        style VM fill:#4C566A,color:#ffffff
+    end
+
+    subgraph Net["Network Layer"]
+        direction TB
+        Nodes[Node Management]
+        TEE[Trusted Execution Environment]
+        RLP[Recursive Length Prefix]
+        style Nodes fill:#A3BE8C,color:#000000
+        style TEE fill:#A3BE8C,color:#000000
+        style RLP fill:#A3BE8C,color:#000000
+    end
+
+    subgraph Data["Data Layer"]
+        direction TB
+        Blocks[Block Storage]
+        Hash[Merkle Tree]
+        Crypto[Cryptographic Primitives]
+        style Blocks fill:#D08770,color:#000000
+        style Hash fill:#D08770,color:#000000
+        style Crypto fill:#D08770,color:#000000
+    end
+
+    subgraph Hard["Hardware/Infrastructure Layer"]
+        direction TB
+        Mining[Mining Equipment]
+        Servers[Network Servers]
+        Storage[Decentralized Storage]
+        style Mining fill:#EBCB8B,color:#000000
+        style Servers fill:#EBCB8B,color:#000000
+        style Storage fill:#EBCB8B,color:#000000
+    end
+
+    %% Connections
+    UI <--> API
+    API <--> DAO & Oracle & Wallet
+    DAO --> Consensus
+    Oracle --> Consensus
+    Wallet --> Consensus
+    Consensus --> Sidechain & VM
+    Sidechain --> Nodes
+    VM --> Nodes
+    Nodes <--> TEE
+    TEE --> RLP
+    RLP --> Blocks
+    Blocks --> Hash
+    Hash --> Crypto
+    Crypto --> Mining
+    Mining --> Servers
+    Servers --> Storage
+
+    %% Styling
+    classDef default stroke:#000,stroke-width:1px
+    class App,Serv,Proto,Net,Data,Hard default```
+
 ### Smart Contracts
 
 Our protocol consists of 6 core smart contracts deployed on Rootstock:

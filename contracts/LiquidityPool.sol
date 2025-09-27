@@ -27,13 +27,14 @@ library Math {
 }
 
 /**
- * @title LiquidityProtocol
+ * @title LiquidityPool
  * @dev Automated Market Maker (AMM) for BitcoinYield on Rootstock
  * @notice Implements Uniswap V2 style constant product formula with yield generation
  */
-contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
+contract LiquidityPool is ReentrancyGuard, Pausable, AccessControl {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
+    using Math for uint256;
 
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -111,7 +112,7 @@ contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
         uint256 _reserve1 = reserve1;
 
         if (_reserve0 == 0 && _reserve1 == 0) {
-            // First liquidity provision - use geometric mean
+            // First liquidity provision
             liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
             _mint(address(0), MINIMUM_LIQUIDITY); // Permanently lock first liquidity
         } else {
@@ -166,58 +167,60 @@ contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
     }
 
     /**
-     * @dev Swap exact tokens for tokens
-     * @param amountIn Input amount
-     * @param amountOutMin Minimum output amount
-     * @param tokenIn Input token address
+     * @dev Swap tokens
+     * @param amount0Out Amount of token0 to output
+     * @param amount1Out Amount of token1 to output
      * @param to Address to receive output tokens
-     * @return amountOut Output amount
+     * @param data Additional data (for flash swaps)
      */
-    function swapExactTokensForTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address tokenIn,
-        address to
-    ) external nonReentrant whenNotPaused returns (uint256 amountOut) {
-        if (amountIn == 0) revert InsufficientInputAmount();
+    function swap(
+        uint256 amount0Out,
+        uint256 amount1Out,
+        address to,
+        bytes calldata data
+    ) external nonReentrant whenNotPaused {
+        if (amount0Out == 0 && amount1Out == 0)
+            revert InsufficientOutputAmount();
+        if (amount0Out >= reserve0 || amount1Out >= reserve1)
+            revert InsufficientLiquidity();
+
+        // Store reserves to save gas
+        uint256[2] memory reserves = [reserve0, reserve1];
         
-        bool token0In = tokenIn == address(token0);
-        if (!token0In && tokenIn != address(token1)) revert InvalidAmount();
+        // Calculate input amounts
+        uint256[2] memory amountsIn = [
+            amount0Out > 0 ? _getAmountIn(amount0Out, reserves[1], reserves[0]) : 0,
+            amount1Out > 0 ? _getAmountIn(amount1Out, reserves[0], reserves[1]) : 0
+        ];
 
-        // Calculate output amount
-        (uint256 reserveIn, uint256 reserveOut) = token0In 
-            ? (reserve0, reserve1) 
-            : (reserve1, reserve0);
-            
-        amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
-        if (amountOut < amountOutMin) revert InsufficientOutputAmount();
+        if (amountsIn[0] == 0 && amountsIn[1] == 0) revert InsufficientInputAmount();
 
-        // Calculate and collect fees
-        uint256 fee = amountIn.mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
-        if (token0In) {
-            protocolFees0 = protocolFees0.add(fee);
-        } else {
-            protocolFees1 = protocolFees1.add(fee);
-        }
+        // Update protocol fees
+        protocolFees0 = protocolFees0.add(amountsIn[0].mul(PROTOCOL_FEE).div(FEE_DENOMINATOR));
+        protocolFees1 = protocolFees1.add(amountsIn[1].mul(PROTOCOL_FEE).div(FEE_DENOMINATOR));
 
-        // Update reserves
-        if (token0In) {
-            _update(reserve0.add(amountIn), reserve1.sub(amountOut), reserve0, reserve1);
-            // Transfer tokens
-            token0.safeTransferFrom(msg.sender, address(this), amountIn);
-            token1.safeTransfer(to, amountOut);
-            
-            emit Swap(msg.sender, amountIn, 0, 0, amountOut, to);
-        } else {
-            _update(reserve0.sub(amountOut), reserve1.add(amountIn), reserve0, reserve1);
-            // Transfer tokens
-            token1.safeTransferFrom(msg.sender, address(this), amountIn);
-            token0.safeTransfer(to, amountOut);
-            
-            emit Swap(msg.sender, 0, amountIn, amountOut, 0, to);
-        }
+        // Calculate new balances
+        uint256[2] memory newBalances = [
+            reserves[0].add(amountsIn[0]).sub(amount0Out),
+            reserves[1].add(amountsIn[1]).sub(amount1Out)
+        ];
 
-        return amountOut;
+        // Check K constraint (simplified)
+        _validateK(reserves, newBalances, amountsIn);
+
+        // Transfer input tokens first
+        if (amountsIn[0] > 0)
+            token0.safeTransferFrom(msg.sender, address(this), amountsIn[0]);
+        if (amountsIn[1] > 0)
+            token1.safeTransferFrom(msg.sender, address(this), amountsIn[1]);
+
+        // Transfer output tokens
+        if (amount0Out > 0) token0.safeTransfer(to, amount0Out);
+        if (amount1Out > 0) token1.safeTransfer(to, amount1Out);
+
+        _update(newBalances[0], newBalances[1], reserves[0], reserves[1]);
+
+        emit Swap(msg.sender, amountsIn[0], amountsIn[1], amount0Out, amount1Out, to);
     }
 
     /**
@@ -231,7 +234,7 @@ contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
         uint256 amountIn,
         uint256 reserveIn,
         uint256 reserveOut
-    ) public pure returns (uint256 amountOut) {
+    ) external pure returns (uint256 amountOut) {
         if (amountIn == 0) revert InsufficientInputAmount();
         if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
 
@@ -253,7 +256,7 @@ contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
         uint256 amountOut,
         uint256 reserveIn,
         uint256 reserveOut
-    ) public pure returns (uint256 amountIn) {
+    ) external pure returns (uint256 amountIn) {
         if (amountOut == 0) revert InsufficientOutputAmount();
         if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
 
@@ -341,6 +344,48 @@ contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
         reserve0 = balance0;
         reserve1 = balance1;
         emit Sync(balance0, balance1);
+    }
+
+    /**
+     * @dev Internal function to get amount in
+     * @param amountOut Output amount
+     * @param reserveIn Input reserve
+     * @param reserveOut Output reserve
+     * @return amountIn Input amount
+     */
+    function _getAmountIn(
+        uint256 amountOut,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) internal pure returns (uint256 amountIn) {
+        uint256 numerator = reserveIn.mul(amountOut).mul(10000);
+        uint256 denominator = reserveOut.sub(amountOut).mul(9970);
+        return numerator.div(denominator).add(1);
+    }
+
+    /**
+     * @dev Validate K constraint for swaps
+     * @param oldReserves Array of old reserves [reserve0, reserve1]
+     * @param newBalances Array of new balances [balance0, balance1]
+     * @param amountsIn Array of input amounts [amount0In, amount1In]
+     */
+    function _validateK(
+        uint256[2] memory oldReserves,
+        uint256[2] memory newBalances,
+        uint256[2] memory amountsIn
+    ) internal pure {
+        uint256 fee0 = amountsIn[0].mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
+        uint256 fee1 = amountsIn[1].mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
+        
+        uint256 balance0Adjusted = newBalances[0].mul(10000).sub(fee0.mul(10000));
+        uint256 balance1Adjusted = newBalances[1].mul(10000).sub(fee1.mul(10000));
+
+        if (
+            balance0Adjusted.mul(balance1Adjusted) <
+            oldReserves[0].mul(oldReserves[1]).mul(10000).mul(10000)
+        ) {
+            revert InsufficientLiquidity();
+        }
     }
 
     /**

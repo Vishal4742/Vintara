@@ -276,18 +276,18 @@ contract GraphIndexer is AccessControl, Pausable, ReentrancyGuard {
     /**
      * @dev Check if a pool is indexed
      * @param poolName Pool identifier
-     * @return indexed True if pool is indexed
+     * @return isIndexed True if pool is indexed
      */
-    function isPoolIndexed(string calldata poolName) external view returns (bool indexed) {
+    function isPoolIndexed(string calldata poolName) external view returns (bool isIndexed) {
         return indexedPools[poolName];
     }
 
     /**
      * @dev Check if a user is indexed
      * @param user User address
-     * @return indexed True if user is indexed
+     * @return isIndexed True if user is indexed
      */
-    function isUserIndexed(address user) external view returns (bool indexed) {
+    function isUserIndexed(address user) external view returns (bool isIndexed) {
         return indexedUsers[user];
     }
 

@@ -6,459 +6,341 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./ChainlinkOracle.sol";
-import "./GraphIndexer.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
+// Math library for square root calculation
+library Math {
+    function sqrt(uint256 x) internal pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+        return y;
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+}
 
 /**
- * @title LendingProtocol
- * @dev Collateralized lending protocol for BitcoinYield on Rootstock
- * @notice Enables users to borrow against rBTC collateral with dynamic interest rates
+ * @title LiquidityProtocol
+ * @dev Automated Market Maker (AMM) for BitcoinYield on Rootstock
+ * @notice Implements Uniswap V2 style constant product formula with yield generation
  */
-contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
+contract LiquidityProtocol is ReentrancyGuard, Pausable, AccessControl {
     using SafeERC20 for IERC20;
+    using SafeMath for uint256;
 
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 public constant LIQUIDATOR_ROLE = keccak256("LIQUIDATOR_ROLE");
 
     // Constants
-    uint256 public constant COLLATERAL_FACTOR = 15000; // 150% (15000 basis points)
-    uint256 public constant LIQUIDATION_THRESHOLD = 12000; // 120% (12000 basis points)
-    uint256 public constant MAX_LTV = 8000; // 80% (8000 basis points)
+    uint256 public constant FEE_DENOMINATOR = 10000;
+    uint256 public constant PROTOCOL_FEE = 30; // 0.3%
+    uint256 public constant MINIMUM_LIQUIDITY = 1000; // Minimum liquidity to prevent division by zero
 
     // State variables
-    IERC20 public immutable rBTC;
-    IERC20 public immutable borrowToken; // USDT or DAI
-    ChainlinkOracle public immutable chainlinkOracle;
-    GraphIndexer public immutable graphIndexer;
+    IERC20 public immutable token0;
+    IERC20 public immutable token1;
+    uint256 public reserve0;
+    uint256 public reserve1;
+    uint256 public totalSupply;
+    uint256 public kLast; // K value at last liquidity event
 
-    uint256 public totalBorrowed;
-    uint256 public totalCollateral;
-    uint256 public borrowRate; // Annual borrow rate in basis points
-    uint256 public supplyRate; // Annual supply rate in basis points
-    uint256 public dynamicBorrowRate; // Dynamic borrow rate based on market conditions
-    uint256 public dynamicSupplyRate; // Dynamic supply rate based on market conditions
+    // User balances
+    mapping(address => uint256) public balances;
 
-    // User positions
-    struct Position {
-        uint256 collateral;
-        uint256 borrowed;
-        uint256 lastUpdateTime;
-        bool exists;
-    }
-
-    mapping(address => Position) public positions;
-    mapping(address => uint256) public borrowIndex; // For interest calculation
+    // Fee tracking
+    uint256 public protocolFees0;
+    uint256 public protocolFees1;
 
     // Events
-    event CollateralDeposited(address indexed user, uint256 amount);
-    event CollateralWithdrawn(address indexed user, uint256 amount);
-    event Borrowed(address indexed user, uint256 amount);
-    event Repaid(address indexed user, uint256 amount);
-    event Liquidated(
-        address indexed user,
-        address indexed liquidator,
-        uint256 collateralSeized,
-        uint256 debtRepaid
+    event Mint(address indexed sender, uint256 amount0, uint256 amount1);
+    event Burn(
+        address indexed sender,
+        uint256 amount0,
+        uint256 amount1,
+        address indexed to
     );
-    event InterestRatesUpdated(uint256 newBorrowRate, uint256 newSupplyRate);
-    event DynamicInterestRatesUpdated(
-        uint256 newBorrowRate,
-        uint256 newSupplyRate
+    event Swap(
+        address indexed sender,
+        uint256 amount0In,
+        uint256 amount1In,
+        uint256 amount0Out,
+        uint256 amount1Out,
+        address indexed to
     );
-    event UserIndexed(address indexed user, uint256 totalBorrows, uint256 totalCollateral);
-    event ProtocolStatsUpdated(uint256 totalBorrowed, uint256 totalCollateral, uint256 activeUsers);
+    event Sync(uint256 reserve0, uint256 reserve1);
+    event FeesCollected(uint256 fee0, uint256 fee1);
 
     // Errors
-    error InsufficientCollateral();
     error InsufficientLiquidity();
-    error PositionNotHealthy();
+    error InsufficientOutputAmount();
+    error InsufficientInputAmount();
+    error InsufficientLiquidityMinted();
+    error TransferFailed();
     error InvalidAmount();
-    error Unauthorized();
 
-    constructor(
-        address _rBTC,
-        address _borrowToken,
-        address _chainlinkOracle,
-        address _graphIndexer
-    ) {
-        rBTC = IERC20(_rBTC);
-        borrowToken = IERC20(_borrowToken);
-        chainlinkOracle = ChainlinkOracle(_chainlinkOracle);
-        graphIndexer = GraphIndexer(_graphIndexer);
+    constructor(address _token0, address _token1) {
+        token0 = IERC20(_token0);
+        token1 = IERC20(_token1);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
-        _grantRole(LIQUIDATOR_ROLE, msg.sender);
-
-        borrowRate = 800; // 8% initial borrow rate
-        supplyRate = 600; // 6% initial supply rate
-        dynamicBorrowRate = 800; // 8% initial dynamic borrow rate
-        dynamicSupplyRate = 600; // 6% initial dynamic supply rate
     }
 
     /**
-     * @dev Deposit collateral
-     * @param amount Amount of rBTC to deposit as collateral
+     * @dev Add liquidity to the pool
+     * @param amount0 Amount of token0 to add
+     * @param amount1 Amount of token1 to add
+     * @param to Address to receive LP tokens
+     * @return liquidity Amount of LP tokens minted
      */
-    function depositCollateral(
-        uint256 amount
-    ) external nonReentrant whenNotPaused {
-        if (amount == 0) revert InvalidAmount();
+    function addLiquidity(
+        uint256 amount0,
+        uint256 amount1,
+        address to
+    ) external nonReentrant whenNotPaused returns (uint256 liquidity) {
+        if (amount0 == 0 || amount1 == 0) revert InvalidAmount();
 
-        // Update position
-        if (positions[msg.sender].exists) {
-            _updateInterest(msg.sender);
+        uint256 _reserve0 = reserve0;
+        uint256 _reserve1 = reserve1;
+
+        if (_reserve0 == 0 && _reserve1 == 0) {
+            // First liquidity provision - use geometric mean
+            liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
+            _mint(address(0), MINIMUM_LIQUIDITY); // Permanently lock first liquidity
         } else {
-            positions[msg.sender].exists = true;
-            positions[msg.sender].lastUpdateTime = block.timestamp;
-        }
-
-        positions[msg.sender].collateral = positions[msg.sender].collateral + amount;
-        totalCollateral = totalCollateral + amount;
-
-        // Transfer rBTC from user
-        rBTC.safeTransferFrom(msg.sender, address(this), amount);
-
-        emit CollateralDeposited(msg.sender, amount);
-    }
-
-    /**
-     * @dev Withdraw collateral
-     * @param amount Amount of rBTC to withdraw
-     */
-    function withdrawCollateral(uint256 amount) external nonReentrant {
-        if (amount == 0 || amount > positions[msg.sender].collateral)
-            revert InvalidAmount();
-
-        _updateInterest(msg.sender);
-
-        // Check if position remains healthy after withdrawal
-        uint256 newCollateral = positions[msg.sender].collateral - amount;
-        if (positions[msg.sender].borrowed > 0) {
-            uint256 healthFactor = _calculateHealthFactor(
-                newCollateral,
-                positions[msg.sender].borrowed
+            // Calculate liquidity based on existing reserves
+            liquidity = Math.min(
+                amount0.mul(totalSupply).div(_reserve0),
+                amount1.mul(totalSupply).div(_reserve1)
             );
-            if (healthFactor < LIQUIDATION_THRESHOLD)
-                revert PositionNotHealthy();
         }
 
-        positions[msg.sender].collateral = newCollateral;
-        totalCollateral = totalCollateral - amount;
+        if (liquidity == 0) revert InsufficientLiquidityMinted();
 
-        // Transfer rBTC to user
-        rBTC.safeTransfer(msg.sender, amount);
+        _mint(to, liquidity);
+        _update(_reserve0.add(amount0), _reserve1.add(amount1), _reserve0, _reserve1);
 
-        emit CollateralWithdrawn(msg.sender, amount);
+        // Transfer tokens from user
+        token0.safeTransferFrom(msg.sender, address(this), amount0);
+        token1.safeTransferFrom(msg.sender, address(this), amount1);
+
+        emit Mint(msg.sender, amount0, amount1);
+        return liquidity;
     }
 
     /**
-     * @dev Borrow tokens against collateral
-     * @param amount Amount to borrow
+     * @dev Remove liquidity from the pool
+     * @param liquidity Amount of LP tokens to burn
+     * @param to Address to receive tokens
+     * @return amount0 Amount of token0 received
+     * @return amount1 Amount of token1 received
      */
-    function borrow(uint256 amount) external nonReentrant whenNotPaused {
-        if (amount == 0) revert InvalidAmount();
+    function removeLiquidity(
+        uint256 liquidity,
+        address to
+    ) external nonReentrant returns (uint256 amount0, uint256 amount1) {
+        if (liquidity == 0) revert InvalidAmount();
 
-        _updateInterest(msg.sender);
+        uint256 _totalSupply = totalSupply;
+        amount0 = liquidity.mul(reserve0).div(_totalSupply);
+        amount1 = liquidity.mul(reserve1).div(_totalSupply);
 
-        // Check if user has enough collateral
-        uint256 maxBorrow = (positions[msg.sender].collateral * MAX_LTV) / 10000;
-        if (positions[msg.sender].borrowed + amount > maxBorrow)
-            revert InsufficientCollateral();
+        if (amount0 == 0 || amount1 == 0) revert InsufficientLiquidity();
 
-        // Check if protocol has enough liquidity
-        if (amount > _getAvailableLiquidity()) revert InsufficientLiquidity();
+        _burn(msg.sender, liquidity);
+        _update(reserve0.sub(amount0), reserve1.sub(amount1), reserve0, reserve1);
 
-        positions[msg.sender].borrowed = positions[msg.sender].borrowed + amount;
-        totalBorrowed = totalBorrowed + amount;
+        // Transfer tokens to user
+        token0.safeTransfer(to, amount0);
+        token1.safeTransfer(to, amount1);
 
-        // Transfer borrow token to user
-        borrowToken.safeTransfer(msg.sender, amount);
-
-        emit Borrowed(msg.sender, amount);
+        emit Burn(msg.sender, amount0, amount1, to);
+        return (amount0, amount1);
     }
 
     /**
-     * @dev Repay borrowed amount
-     * @param amount Amount to repay
+     * @dev Swap exact tokens for tokens
+     * @param amountIn Input amount
+     * @param amountOutMin Minimum output amount
+     * @param tokenIn Input token address
+     * @param to Address to receive output tokens
+     * @return amountOut Output amount
      */
-    function repay(uint256 amount) external nonReentrant {
-        if (amount == 0) revert InvalidAmount();
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address tokenIn,
+        address to
+    ) external nonReentrant whenNotPaused returns (uint256 amountOut) {
+        if (amountIn == 0) revert InsufficientInputAmount();
+        
+        bool token0In = tokenIn == address(token0);
+        if (!token0In && tokenIn != address(token1)) revert InvalidAmount();
 
-        _updateInterest(msg.sender);
+        // Calculate output amount
+        (uint256 reserveIn, uint256 reserveOut) = token0In 
+            ? (reserve0, reserve1) 
+            : (reserve1, reserve0);
+            
+        amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+        if (amountOut < amountOutMin) revert InsufficientOutputAmount();
 
-        uint256 debt = positions[msg.sender].borrowed;
-        if (amount > debt) amount = debt;
-
-        positions[msg.sender].borrowed = debt - amount;
-        totalBorrowed = totalBorrowed - amount;
-
-        // Transfer borrow token from user
-        borrowToken.safeTransferFrom(msg.sender, address(this), amount);
-
-        emit Repaid(msg.sender, amount);
-    }
-
-    /**
-     * @dev Liquidate unhealthy position
-     * @param user User to liquidate
-     * @param repayAmount Amount of debt to repay
-     */
-    function liquidate(
-        address user,
-        uint256 repayAmount
-    ) external nonReentrant onlyRole(LIQUIDATOR_ROLE) {
-        _updateInterest(user);
-
-        uint256 healthFactor = _calculateHealthFactor(
-            positions[user].collateral,
-            positions[user].borrowed
-        );
-        if (healthFactor >= LIQUIDATION_THRESHOLD) revert PositionNotHealthy();
-
-        if (repayAmount > positions[user].borrowed)
-            repayAmount = positions[user].borrowed;
-
-        // Calculate collateral to seize (with liquidation bonus)
-        uint256 collateralSeized = (repayAmount * 11000) / 10000; // 10% bonus
-
-        if (collateralSeized > positions[user].collateral) {
-            collateralSeized = positions[user].collateral;
+        // Calculate and collect fees
+        uint256 fee = amountIn.mul(PROTOCOL_FEE).div(FEE_DENOMINATOR);
+        if (token0In) {
+            protocolFees0 = protocolFees0.add(fee);
+        } else {
+            protocolFees1 = protocolFees1.add(fee);
         }
 
-        // Update positions
-        positions[user].borrowed = positions[user].borrowed - repayAmount;
-        positions[user].collateral = positions[user].collateral - collateralSeized;
-        totalBorrowed = totalBorrowed - repayAmount;
-        totalCollateral = totalCollateral - collateralSeized;
-
-        // Transfer tokens
-        borrowToken.safeTransferFrom(msg.sender, address(this), repayAmount);
-        rBTC.safeTransfer(msg.sender, collateralSeized);
-
-        emit Liquidated(user, msg.sender, collateralSeized, repayAmount);
-    }
-
-    /**
-     * @dev Update interest rates (only manager)
-     * @param newBorrowRate New borrow rate in basis points
-     * @param newSupplyRate New supply rate in basis points
-     */
-    function updateInterestRates(
-        uint256 newBorrowRate,
-        uint256 newSupplyRate
-    ) external onlyRole(MANAGER_ROLE) {
-        borrowRate = newBorrowRate;
-        supplyRate = newSupplyRate;
-        emit InterestRatesUpdated(newBorrowRate, newSupplyRate);
-    }
-
-    /**
-     * @dev Update dynamic interest rates based on market conditions (only manager)
-     * @param newBorrowRate New dynamic borrow rate in basis points
-     * @param newSupplyRate New dynamic supply rate in basis points
-     */
-    function updateDynamicInterestRates(
-        uint256 newBorrowRate,
-        uint256 newSupplyRate
-    ) external onlyRole(MANAGER_ROLE) {
-        dynamicBorrowRate = newBorrowRate;
-        dynamicSupplyRate = newSupplyRate;
-        emit DynamicInterestRatesUpdated(newBorrowRate, newSupplyRate);
-    }
-
-    /**
-     * @dev Calculate and update dynamic interest rates based on PyTH price feeds
-     * This function adjusts rates based on rBTC price volatility and market conditions
-     */
-    function updateRatesBasedOnMarketConditions()
-        external
-        onlyRole(MANAGER_ROLE)
-    {
-        try chainlinkOracle.getRBTCToUSDTRatio() returns (uint256 ratio) {
-            // Base rates
-            uint256 baseBorrowRate = borrowRate;
-            uint256 baseSupplyRate = supplyRate;
-
-            // Adjust rates based on rBTC/USDT ratio
-            // Higher ratio = higher demand for rBTC = higher borrow rates
-            uint256 borrowAdjustment = 0;
-            uint256 supplyAdjustment = 0;
-
-            // Example adjustments based on ratio
-            if (ratio > 50000 * 10 ** 8) {
-                // rBTC > $50,000
-                borrowAdjustment = 100; // 1% increase
-                supplyAdjustment = 50; // 0.5% increase
-            } else if (ratio < 30000 * 10 ** 8) {
-                // rBTC < $30,000
-                borrowAdjustment = 50; // 0.5% decrease
-                supplyAdjustment = 25; // 0.25% decrease
-            }
-
-            // Calculate new dynamic rates
-            uint256 newBorrowRate = baseBorrowRate + borrowAdjustment;
-            uint256 newSupplyRate = baseSupplyRate + supplyAdjustment;
-
-            // Ensure rates are within reasonable bounds
-            if (newBorrowRate < 200) newBorrowRate = 200; // Min 2%
-            if (newBorrowRate > 2000) newBorrowRate = 2000; // Max 20%
-            if (newSupplyRate < 100) newSupplyRate = 100; // Min 1%
-            if (newSupplyRate > 1500) newSupplyRate = 1500; // Max 15%
-
-            dynamicBorrowRate = newBorrowRate;
-            dynamicSupplyRate = newSupplyRate;
-            emit DynamicInterestRatesUpdated(newBorrowRate, newSupplyRate);
-        } catch {
-            // If PyTH oracle fails, keep current dynamic rates
+        // Update reserves
+        if (token0In) {
+            _update(reserve0.add(amountIn), reserve1.sub(amountOut), reserve0, reserve1);
+            // Transfer tokens
+            token0.safeTransferFrom(msg.sender, address(this), amountIn);
+            token1.safeTransfer(to, amountOut);
+            
+            emit Swap(msg.sender, amountIn, 0, 0, amountOut, to);
+        } else {
+            _update(reserve0.sub(amountOut), reserve1.add(amountIn), reserve0, reserve1);
+            // Transfer tokens
+            token1.safeTransferFrom(msg.sender, address(this), amountIn);
+            token0.safeTransfer(to, amountOut);
+            
+            emit Swap(msg.sender, 0, amountIn, amountOut, 0, to);
         }
+
+        return amountOut;
     }
 
     /**
-     * @dev Borrow tokens using ENS name
-     * @param ensName ENS name (e.g., "user.vintara.eth")
-     * @param amount Amount to borrow
+     * @dev Get amount out for a given input
+     * @param amountIn Input amount
+     * @param reserveIn Input reserve
+     * @param reserveOut Output reserve
+     * @return amountOut Output amount
      */
-    function borrowWithENS(
-        string calldata ensName,
-        uint256 amount
-    ) external nonReentrant whenNotPaused {
-        if (amount == 0) revert InvalidAmount();
+    function getAmountOut(
+        uint256 amountIn,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) public pure returns (uint256 amountOut) {
+        if (amountIn == 0) revert InsufficientInputAmount();
+        if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
 
-        // Resolve ENS name to address
-        address resolvedAddress = ensResolver.resolveENSNameString(ensName);
+        uint256 amountInWithFee = amountIn.mul(9970); // 0.3% fee
+        uint256 numerator = amountInWithFee.mul(reserveOut);
+        uint256 denominator = reserveIn.mul(10000).add(amountInWithFee);
 
-        // Use resolved address for borrowing
-        _updateInterest(resolvedAddress);
-
-        // Check if user has enough collateral
-        uint256 maxBorrow = positions[resolvedAddress]
-            .collateral * MAX_LTV) / 10000;
-        if (positions[resolvedAddress].borrowed + amount > maxBorrow)
-            revert InsufficientCollateral();
-
-        // Check if protocol has enough liquidity
-        if (amount > _getAvailableLiquidity()) revert InsufficientLiquidity();
-
-        positions[resolvedAddress].borrowed = positions[resolvedAddress].borrowed + amount;
-        totalBorrowed = totalBorrowed + amount;
-
-        // Transfer borrow token to msg.sender (the caller)
-        borrowToken.safeTransfer(msg.sender, amount);
-
-        emit Borrowed(resolvedAddress, amount);
-        emit ENSBorrowed(ensName, resolvedAddress, amount);
+        return numerator.div(denominator);
     }
 
     /**
-     * @dev Repay borrowed amount using ENS name
-     * @param ensName ENS name (e.g., "user.vintara.eth")
-     * @param amount Amount to repay
+     * @dev Get amount in for a given output
+     * @param amountOut Output amount
+     * @param reserveIn Input reserve
+     * @param reserveOut Output reserve
+     * @return amountIn Input amount
      */
-    function repayWithENS(
-        string calldata ensName,
-        uint256 amount
-    ) external nonReentrant {
-        if (amount == 0) revert InvalidAmount();
+    function getAmountIn(
+        uint256 amountOut,
+        uint256 reserveIn,
+        uint256 reserveOut
+    ) public pure returns (uint256 amountIn) {
+        if (amountOut == 0) revert InsufficientOutputAmount();
+        if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
 
-        // Resolve ENS name to address
-        address resolvedAddress = ensResolver.resolveENSNameString(ensName);
+        uint256 numerator = reserveIn.mul(amountOut).mul(10000);
+        uint256 denominator = reserveOut.sub(amountOut).mul(9970);
 
-        _updateInterest(resolvedAddress);
-
-        uint256 debt = positions[resolvedAddress].borrowed;
-        if (amount > debt) amount = debt;
-
-        positions[resolvedAddress].borrowed = debt - amount;
-        totalBorrowed = totalBorrowed - amount;
-
-        // Transfer borrow token from msg.sender (the caller)
-        borrowToken.safeTransferFrom(msg.sender, address(this), amount);
-
-        emit Repaid(resolvedAddress, amount);
-        emit ENSRepaid(ensName, resolvedAddress, amount);
+        return numerator.div(denominator).add(1);
     }
 
     /**
-     * @dev Get user's health factor
-     * @param user User address
-     * @return healthFactor Health factor in basis points
+     * @dev Collect protocol fees
      */
-    function getHealthFactor(
-        address user
-    ) external view returns (uint256 healthFactor) {
-        _updateInterest(user);
-        return
-            _calculateHealthFactor(
-                positions[user].collateral,
-                positions[user].borrowed
-            );
+    function collectFees() external onlyRole(MANAGER_ROLE) {
+        uint256 fee0 = protocolFees0;
+        uint256 fee1 = protocolFees1;
+
+        if (fee0 > 0) {
+            protocolFees0 = 0;
+            token0.safeTransfer(msg.sender, fee0);
+        }
+
+        if (fee1 > 0) {
+            protocolFees1 = 0;
+            token1.safeTransfer(msg.sender, fee1);
+        }
+
+        emit FeesCollected(fee0, fee1);
     }
 
     /**
-     * @dev Get user's position info
-     * @param user User address
-     * @return collateral Collateral amount
-     * @return borrowed Borrowed amount
-     * @return healthFactor Health factor
+     * @dev Get current reserves
+     * @return _reserve0 Reserve of token0
+     * @return _reserve1 Reserve of token1
      */
-    function getPosition(
-        address user
-    )
+    function getReserves()
         external
         view
-        returns (uint256 collateral, uint256 borrowed, uint256 healthFactor)
+        returns (uint256 _reserve0, uint256 _reserve1)
     {
-        collateral = positions[user].collateral;
-        borrowed = positions[user].borrowed;
-        healthFactor = _calculateHealthFactor(collateral, borrowed);
+        return (reserve0, reserve1);
     }
 
     /**
-     * @dev Calculate health factor
-     * @param collateral Collateral amount
-     * @param borrowed Borrowed amount
-     * @return healthFactor Health factor in basis points
-     */
-    function _calculateHealthFactor(
-        uint256 collateral,
-        uint256 borrowed
-    ) internal pure returns (uint256 healthFactor) {
-        if (borrowed == 0) return type(uint256).max;
-        return (collateral * 10000) / borrowed;
-    }
-
-    /**
-     * @dev Update interest for a user
+     * @dev Get user's LP token balance
      * @param user User address
+     * @return balance LP token balance
      */
-    function _updateInterest(address user) internal {
-        if (!positions[user].exists) return;
-
-        uint256 timeElapsed = block.timestamp - positions[user].lastUpdateTime;
-        if (timeElapsed == 0) return;
-
-        // Use dynamic borrow rate if available, otherwise use base rate
-        uint256 currentBorrowRate = dynamicBorrowRate > 0
-            ? dynamicBorrowRate
-            : borrowRate;
-
-        uint256 interest = (positions[user].borrowed * currentBorrowRate * timeElapsed) / (365 days * 10000);
-        positions[user].borrowed = positions[user].borrowed + interest;
-        positions[user].lastUpdateTime = block.timestamp;
+    function getBalance(address user) external view returns (uint256 balance) {
+        return balances[user];
     }
 
     /**
-     * @dev Get available liquidity for borrowing
-     * @return liquidity Available liquidity
+     * @dev Internal function to mint LP tokens
+     * @param to Address to mint to
+     * @param amount Amount to mint
      */
-    function _getAvailableLiquidity()
-        internal
-        view
-        returns (uint256 liquidity)
-    {
-        return borrowToken.balanceOf(address(this)) - totalBorrowed;
+    function _mint(address to, uint256 amount) internal {
+        balances[to] = balances[to].add(amount);
+        totalSupply = totalSupply.add(amount);
+    }
+
+    /**
+     * @dev Internal function to burn LP tokens
+     * @param from Address to burn from
+     * @param amount Amount to burn
+     */
+    function _burn(address from, uint256 amount) internal {
+        balances[from] = balances[from].sub(amount);
+        totalSupply = totalSupply.sub(amount);
+    }
+
+    /**
+     * @dev Internal function to update reserves
+     * @param balance0 New balance of token0
+     * @param balance1 New balance of token1
+     * @param _reserve0 Old reserve of token0
+     * @param _reserve1 Old reserve of token1
+     */
+    function _update(
+        uint256 balance0,
+        uint256 balance1,
+        uint256 _reserve0,
+        uint256 _reserve1
+    ) internal {
+        reserve0 = balance0;
+        reserve1 = balance1;
+        emit Sync(balance0, balance1);
     }
 
     /**

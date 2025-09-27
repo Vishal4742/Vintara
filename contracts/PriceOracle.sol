@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
  * @title PriceOracle
@@ -11,8 +10,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * @notice Provides price feeds for various tokens with fallback mechanisms
  */
 contract PriceOracle is AccessControl, Pausable {
-    using SafeMath for uint256;
-
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant FEEDER_ROLE = keccak256("FEEDER_ROLE");
@@ -126,7 +123,7 @@ contract PriceOracle is AccessControl, Pausable {
         PriceData memory priceData = prices[token];
 
         if (!priceData.isValid) revert TokenNotFound();
-        if (block.timestamp.sub(priceData.timestamp) > MAX_PRICE_AGE)
+        if (block.timestamp - priceData.timestamp > MAX_PRICE_AGE)
             revert PriceTooOld();
         if (priceData.confidence < MIN_CONFIDENCE) revert LowConfidence();
 
@@ -150,7 +147,7 @@ contract PriceOracle is AccessControl, Pausable {
         PriceData memory priceData = prices[token];
 
         if (!priceData.isValid) revert TokenNotFound();
-        if (block.timestamp.sub(priceData.timestamp) > MAX_PRICE_AGE)
+        if (block.timestamp - priceData.timestamp > MAX_PRICE_AGE)
             revert PriceTooOld();
         if (priceData.confidence < MIN_CONFIDENCE) revert LowConfidence();
 
@@ -171,7 +168,7 @@ contract PriceOracle is AccessControl, Pausable {
             PriceData memory priceData = prices[tokens[i]];
 
             if (!priceData.isValid) revert TokenNotFound();
-            if (block.timestamp.sub(priceData.timestamp) > MAX_PRICE_AGE)
+            if (block.timestamp - priceData.timestamp > MAX_PRICE_AGE)
                 revert PriceTooOld();
             if (priceData.confidence < MIN_CONFIDENCE) revert LowConfidence();
 
@@ -194,7 +191,7 @@ contract PriceOracle is AccessControl, Pausable {
         uint256 priceA = this.getPrice(tokenA);
         uint256 priceB = this.getPrice(tokenB);
 
-        return priceA.mul(10 ** PRICE_DECIMALS).div(priceB);
+        return (priceA * 10 ** PRICE_DECIMALS) / priceB;
     }
 
     /**
@@ -229,7 +226,7 @@ contract PriceOracle is AccessControl, Pausable {
 
         return
             priceData.isValid &&
-            block.timestamp.sub(priceData.timestamp) <= MAX_PRICE_AGE &&
+            block.timestamp - priceData.timestamp <= MAX_PRICE_AGE &&
             priceData.confidence >= MIN_CONFIDENCE;
     }
 
@@ -240,7 +237,7 @@ contract PriceOracle is AccessControl, Pausable {
      */
     function getPriceAge(address token) external view returns (uint256 age) {
         PriceData memory priceData = prices[token];
-        return block.timestamp.sub(priceData.timestamp);
+        return block.timestamp - priceData.timestamp;
     }
 
     /**

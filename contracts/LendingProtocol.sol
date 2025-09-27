@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./PythOracle.sol";
 import "./ENSResolver.sol";
 
@@ -17,7 +16,6 @@ import "./ENSResolver.sol";
  */
 contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -124,10 +122,8 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
             positions[msg.sender].lastUpdateTime = block.timestamp;
         }
 
-        positions[msg.sender].collateral = positions[msg.sender].collateral.add(
-            amount
-        );
-        totalCollateral = totalCollateral.add(amount);
+        positions[msg.sender].collateral = positions[msg.sender].collateral + amount;
+        totalCollateral = totalCollateral + amount;
 
         // Transfer rBTC from user
         rBTC.safeTransferFrom(msg.sender, address(this), amount);
@@ -146,7 +142,7 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         _updateInterest(msg.sender);
 
         // Check if position remains healthy after withdrawal
-        uint256 newCollateral = positions[msg.sender].collateral.sub(amount);
+        uint256 newCollateral = positions[msg.sender].collateral - amount;
         if (positions[msg.sender].borrowed > 0) {
             uint256 healthFactor = _calculateHealthFactor(
                 newCollateral,
@@ -157,7 +153,7 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         }
 
         positions[msg.sender].collateral = newCollateral;
-        totalCollateral = totalCollateral.sub(amount);
+        totalCollateral = totalCollateral - amount;
 
         // Transfer rBTC to user
         rBTC.safeTransfer(msg.sender, amount);
@@ -175,19 +171,15 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         _updateInterest(msg.sender);
 
         // Check if user has enough collateral
-        uint256 maxBorrow = positions[msg.sender].collateral.mul(MAX_LTV).div(
-            10000
-        );
-        if (positions[msg.sender].borrowed.add(amount) > maxBorrow)
+        uint256 maxBorrow = (positions[msg.sender].collateral * MAX_LTV) / 10000;
+        if (positions[msg.sender].borrowed + amount > maxBorrow)
             revert InsufficientCollateral();
 
         // Check if protocol has enough liquidity
         if (amount > _getAvailableLiquidity()) revert InsufficientLiquidity();
 
-        positions[msg.sender].borrowed = positions[msg.sender].borrowed.add(
-            amount
-        );
-        totalBorrowed = totalBorrowed.add(amount);
+        positions[msg.sender].borrowed = positions[msg.sender].borrowed + amount;
+        totalBorrowed = totalBorrowed + amount;
 
         // Transfer borrow token to user
         borrowToken.safeTransfer(msg.sender, amount);
@@ -207,8 +199,8 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         uint256 debt = positions[msg.sender].borrowed;
         if (amount > debt) amount = debt;
 
-        positions[msg.sender].borrowed = debt.sub(amount);
-        totalBorrowed = totalBorrowed.sub(amount);
+        positions[msg.sender].borrowed = debt - amount;
+        totalBorrowed = totalBorrowed - amount;
 
         // Transfer borrow token from user
         borrowToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -237,19 +229,17 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
             repayAmount = positions[user].borrowed;
 
         // Calculate collateral to seize (with liquidation bonus)
-        uint256 collateralSeized = repayAmount.mul(11000).div(10000); // 10% bonus
+        uint256 collateralSeized = (repayAmount * 11000) / 10000; // 10% bonus
 
         if (collateralSeized > positions[user].collateral) {
             collateralSeized = positions[user].collateral;
         }
 
         // Update positions
-        positions[user].borrowed = positions[user].borrowed.sub(repayAmount);
-        positions[user].collateral = positions[user].collateral.sub(
-            collateralSeized
-        );
-        totalBorrowed = totalBorrowed.sub(repayAmount);
-        totalCollateral = totalCollateral.sub(collateralSeized);
+        positions[user].borrowed = positions[user].borrowed - repayAmount;
+        positions[user].collateral = positions[user].collateral - collateralSeized;
+        totalBorrowed = totalBorrowed - repayAmount;
+        totalCollateral = totalCollateral - collateralSeized;
 
         // Transfer tokens
         borrowToken.safeTransferFrom(msg.sender, address(this), repayAmount);
@@ -316,8 +306,8 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
             }
 
             // Calculate new dynamic rates
-            uint256 newBorrowRate = baseBorrowRate.add(borrowAdjustment);
-            uint256 newSupplyRate = baseSupplyRate.add(supplyAdjustment);
+            uint256 newBorrowRate = baseBorrowRate + borrowAdjustment;
+            uint256 newSupplyRate = baseSupplyRate + supplyAdjustment;
 
             // Ensure rates are within reasonable bounds
             if (newBorrowRate < 200) newBorrowRate = 200; // Min 2%
@@ -352,19 +342,15 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
 
         // Check if user has enough collateral
         uint256 maxBorrow = positions[resolvedAddress]
-            .collateral
-            .mul(MAX_LTV)
-            .div(10000);
-        if (positions[resolvedAddress].borrowed.add(amount) > maxBorrow)
+            .collateral * MAX_LTV) / 10000;
+        if (positions[resolvedAddress].borrowed + amount > maxBorrow)
             revert InsufficientCollateral();
 
         // Check if protocol has enough liquidity
         if (amount > _getAvailableLiquidity()) revert InsufficientLiquidity();
 
-        positions[resolvedAddress].borrowed = positions[resolvedAddress]
-            .borrowed
-            .add(amount);
-        totalBorrowed = totalBorrowed.add(amount);
+        positions[resolvedAddress].borrowed = positions[resolvedAddress].borrowed + amount;
+        totalBorrowed = totalBorrowed + amount;
 
         // Transfer borrow token to msg.sender (the caller)
         borrowToken.safeTransfer(msg.sender, amount);
@@ -392,8 +378,8 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         uint256 debt = positions[resolvedAddress].borrowed;
         if (amount > debt) amount = debt;
 
-        positions[resolvedAddress].borrowed = debt.sub(amount);
-        totalBorrowed = totalBorrowed.sub(amount);
+        positions[resolvedAddress].borrowed = debt - amount;
+        totalBorrowed = totalBorrowed - amount;
 
         // Transfer borrow token from msg.sender (the caller)
         borrowToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -448,7 +434,7 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         uint256 borrowed
     ) internal pure returns (uint256 healthFactor) {
         if (borrowed == 0) return type(uint256).max;
-        return collateral.mul(10000).div(borrowed);
+        return (collateral * 10000) / borrowed;
     }
 
     /**
@@ -458,9 +444,7 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
     function _updateInterest(address user) internal {
         if (!positions[user].exists) return;
 
-        uint256 timeElapsed = block.timestamp.sub(
-            positions[user].lastUpdateTime
-        );
+        uint256 timeElapsed = block.timestamp - positions[user].lastUpdateTime;
         if (timeElapsed == 0) return;
 
         // Use dynamic borrow rate if available, otherwise use base rate
@@ -468,13 +452,8 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
             ? dynamicBorrowRate
             : borrowRate;
 
-        uint256 interest = positions[user]
-            .borrowed
-            .mul(currentBorrowRate)
-            .mul(timeElapsed)
-            .div(365 days)
-            .div(10000);
-        positions[user].borrowed = positions[user].borrowed.add(interest);
+        uint256 interest = (positions[user].borrowed * currentBorrowRate * timeElapsed) / (365 days * 10000);
+        positions[user].borrowed = positions[user].borrowed + interest;
         positions[user].lastUpdateTime = block.timestamp;
     }
 
@@ -487,7 +466,7 @@ contract LendingProtocol is ReentrancyGuard, Pausable, AccessControl {
         view
         returns (uint256 liquidity)
     {
-        return borrowToken.balanceOf(address(this)).sub(totalBorrowed);
+        return borrowToken.balanceOf(address(this)) - totalBorrowed;
     }
 
     /**

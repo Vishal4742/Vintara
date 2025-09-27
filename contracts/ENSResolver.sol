@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
  * @title ENSResolver
@@ -12,7 +11,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * @notice Allows using ENS names as wallet addresses in lending protocol
  */
 contract ENSResolver is AccessControl, Pausable, ReentrancyGuard {
-    using SafeMath for uint256;
 
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");

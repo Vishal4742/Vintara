@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { EnhancedLendingForm } from "@/components/ui/EnhancedLendingForm";
+import { CONTRACTS } from "@/config/contracts";
 import {
   TrendingUp,
   TrendingDown,

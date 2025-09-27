@@ -112,28 +112,26 @@ async function main() {
 
   await pythOracle.connect(deployer).updatePrice(
     rbtcPriceId,
-    ethers.BigNumber.from("4500000000000"), // $45,000 in 8 decimals
-    ethers.BigNumber.from("950000000"), // 95% confidence
+    BigInt("4500000000000"), // $45,000 in 8 decimals
+    BigInt("950000000"), // 95% confidence
     -8, // 8 decimal places
     Math.floor(Date.now() / 1000)
   );
 
   await pythOracle.connect(deployer).updatePrice(
     usdtPriceId,
-    ethers.BigNumber.from("100000000"), // $1.00 in 8 decimals
-    ethers.BigNumber.from("980000000"), // 98% confidence
+    BigInt("100000000"), // $1.00 in 8 decimals
+    BigInt("980000000"), // 98% confidence
     -8, // 8 decimal places
     Math.floor(Date.now() / 1000)
   );
   console.log("✅ Set up PyTH Oracle with initial prices");
 
   // Register some ENS names for testing
-  const aliceNameHash = ethers.utils.keccak256(
-    ethers.utils.toUtf8Bytes("alice.vintara.eth")
+  const aliceNameHash = ethers.keccak256(
+    ethers.toUtf8Bytes("alice.vintara.eth")
   );
-  const bobNameHash = ethers.utils.keccak256(
-    ethers.utils.toUtf8Bytes("bob.vintara.eth")
-  );
+  const bobNameHash = ethers.keccak256(ethers.toUtf8Bytes("bob.vintara.eth"));
 
   await ensResolver
     .connect(deployer)

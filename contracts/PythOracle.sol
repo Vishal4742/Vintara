@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
  * @title PythOracle
@@ -12,8 +11,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * @notice Fetches price data from PyTH Network via Hermes for rBTC and USDT
  */
 contract PythOracle is AccessControl, Pausable, ReentrancyGuard {
-    using SafeMath for uint256;
-
     // Roles
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant UPDATER_ROLE = keccak256("UPDATER_ROLE");
@@ -192,7 +189,7 @@ contract PythOracle is AccessControl, Pausable, ReentrancyGuard {
     ) external view returns (PriceData memory priceData) {
         priceData = prices[priceId];
         if (!priceData.isValid) revert PriceFeedNotFound();
-        if (block.timestamp.sub(lastUpdateTime[priceId]) > MAX_PRICE_AGE)
+        if (block.timestamp - lastUpdateTime[priceId] > MAX_PRICE_AGE)
             revert PriceTooOld();
         return priceData;
     }
@@ -209,7 +206,7 @@ contract PythOracle is AccessControl, Pausable, ReentrancyGuard {
         uint256 rbtcPriceUint = uint256(uint64(rbtcPrice));
         uint256 usdtPriceUint = uint256(uint64(usdtPrice));
 
-        return rbtcPriceUint.mul(10 ** PRICE_DECIMALS).div(usdtPriceUint);
+        return (rbtcPriceUint * 10 ** PRICE_DECIMALS) / usdtPriceUint;
     }
 
     /**
@@ -223,7 +220,7 @@ contract PythOracle is AccessControl, Pausable, ReentrancyGuard {
         PriceData memory priceData = prices[priceId];
         return
             priceData.isValid &&
-            block.timestamp.sub(lastUpdateTime[priceId]) <= MAX_PRICE_AGE &&
+            block.timestamp - lastUpdateTime[priceId] <= MAX_PRICE_AGE &&
             priceData.conf >= MIN_CONFIDENCE;
     }
 
@@ -233,7 +230,7 @@ contract PythOracle is AccessControl, Pausable, ReentrancyGuard {
      * @return age Age in seconds
      */
     function getPriceAge(bytes32 priceId) external view returns (uint256 age) {
-        return block.timestamp.sub(lastUpdateTime[priceId]);
+        return block.timestamp - lastUpdateTime[priceId];
     }
 
     /**
@@ -269,7 +266,7 @@ contract PythOracle is AccessControl, Pausable, ReentrancyGuard {
         PriceData memory priceData = prices[priceId];
 
         if (!priceData.isValid) revert PriceFeedNotFound();
-        if (block.timestamp.sub(lastUpdateTime[priceId]) > MAX_PRICE_AGE)
+        if (block.timestamp - lastUpdateTime[priceId] > MAX_PRICE_AGE)
             revert PriceTooOld();
         if (priceData.conf < MIN_CONFIDENCE) revert LowConfidence();
 

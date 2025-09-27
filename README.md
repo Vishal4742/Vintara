@@ -17,7 +17,6 @@ Vintara is a revolutionary DeFi protocol built on Rootstock (RSK), Bitcoin's lon
 
 ## Architecture
 
-```mermaid
 flowchart TD
     subgraph App["Application Layer"]
         direction TB
@@ -97,7 +96,7 @@ flowchart TD
 
     %% Styling
     classDef default stroke:#000,stroke-width:1px
-    class App,Serv,Proto,Net,Data,Hard default```
+    class App,Serv,Proto,Net,Data,Hard default
 
 ### Smart Contracts
 
@@ -187,15 +186,6 @@ Vintara leverages Rootstock's unique features:
 - **RSK Infrastructure**: Leveraging RSK's robust infrastructure and tooling
 - **Bitcoin Economic Finality**: Utilizing Bitcoin's economic security model
 - **Cross-chain Compatibility**: Ready for future Bitcoin L2 integrations
-
-## Team
-
-Our team consists of experienced blockchain developers and DeFi experts:
-
-- **Lead Developer**: 5+ years in blockchain development, specializing in DeFi protocols
-- **Smart Contract Engineer**: Expert in Solidity and security auditing
-- **Frontend Developer**: React/TypeScript specialist with Web3 integration experience
-- **Product Manager**: DeFi product strategy and user experience design
 
 ## Testing Instructions
 
@@ -347,26 +337,6 @@ function calculateAPY(uint256 principal, uint256 rewards, uint256 timeStaked)
    - Provide liquidity to earn fees
    - Borrow against collateral
    - Stake LP tokens for rewards
-
-## Hackathon Submission
-
-### Qualification Requirements Met
-
-- **Smart contracts deployed on Rootstock testnet**
-- **Minimum 2 successful on-chain transactions**
-- **Projects have description and GitHub repository**
-- **Descriptive README with all required sections**
-- **Clear testing instructions**
-- **Team background information**
-- **Video demo provided**
-
-### Why Vintara Deserves to Win
-
-1. **Innovation**: First comprehensive Bitcoin-native DeFi protocol on Rootstock
-2. **Security**: Leverages Bitcoin's hash power for maximum security
-3. **User Experience**: Intuitive interface with advanced DeFi features
-4. **Technical Excellence**: Robust smart contract architecture with comprehensive testing
-5. **Real Impact**: Addresses the need for Bitcoin-native yield generation
 
 ## Contact
 

@@ -1,14 +1,14 @@
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Wallet, 
-  TrendingUp, 
-  DollarSign, 
+import { ConnectWallet } from "@/components/ui/ConnectWallet";
+import {
+  TrendingUp,
+  DollarSign,
   Activity,
   ArrowUpRight,
   ArrowDownRight,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -57,12 +57,11 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your DeFi portfolio</p>
+          <p className="text-muted-foreground">
+            Overview of your DeFi portfolio
+          </p>
         </div>
-        <Button variant="bitcoin">
-          <Wallet className="h-4 w-4 mr-2" />
-          Connect Wallet
-        </Button>
+        <ConnectWallet />
       </div>
 
       {/* Stats Grid */}
@@ -107,12 +106,18 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold">Portfolio Performance</h2>
             <div className="flex space-x-2">
-              <Button variant="outline" size="sm">7D</Button>
-              <Button variant="outline" size="sm">30D</Button>
-              <Button size="sm" className="bg-bitcoin text-primary-foreground">90D</Button>
+              <Button variant="outline" size="sm">
+                7D
+              </Button>
+              <Button variant="outline" size="sm">
+                30D
+              </Button>
+              <Button size="sm" className="bg-bitcoin text-primary-foreground">
+                90D
+              </Button>
             </div>
           </div>
-          
+
           <div className="h-64 flex items-center justify-center text-muted-foreground">
             <div className="text-center space-y-2">
               <TrendingUp className="h-12 w-12 mx-auto opacity-50" />
@@ -156,37 +161,56 @@ export default function Dashboard() {
       <Card className="p-6 card-gradient border-border/40">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Recent Transactions</h2>
-          <Button variant="outline" size="sm">View All</Button>
+          <Button variant="outline" size="sm">
+            View All
+          </Button>
         </div>
-        
+
         <div className="space-y-4">
           {transactions.map((tx) => (
-            <div key={tx.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors">
+            <div
+              key={tx.id}
+              className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors"
+            >
               <div className="flex items-center space-x-4">
-                <div className={`h-2 w-2 rounded-full ${
-                  tx.status === 'completed' ? 'bg-success' : 
-                  tx.status === 'pending' ? 'bg-warning' : 'bg-destructive'
-                }`} />
+                <div
+                  className={`h-2 w-2 rounded-full ${
+                    tx.status === "completed"
+                      ? "bg-success"
+                      : tx.status === "pending"
+                      ? "bg-warning"
+                      : "bg-destructive"
+                  }`}
+                />
                 <div>
                   <div className="font-medium">{tx.type}</div>
-                  <div className="text-sm text-muted-foreground">{tx.token}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {tx.token}
+                  </div>
                 </div>
               </div>
-              
+
               <div className="text-right">
                 <div className="font-medium">
-                  {tx.type === 'Yield Claim' || tx.type === 'Deposit' ? '+' : ''}
-                  {tx.amount} {tx.token.includes('→') ? '' : tx.token}
+                  {tx.type === "Yield Claim" || tx.type === "Deposit"
+                    ? "+"
+                    : ""}
+                  {tx.amount} {tx.token.includes("→") ? "" : tx.token}
                 </div>
                 <div className="text-sm text-muted-foreground">{tx.value}</div>
               </div>
-              
+
               <div className="text-right">
                 <div className="text-sm text-muted-foreground">{tx.time}</div>
-                <div className={`text-xs font-medium ${
-                  tx.status === 'completed' ? 'text-success' : 
-                  tx.status === 'pending' ? 'text-warning' : 'text-destructive'
-                }`}>
+                <div
+                  className={`text-xs font-medium ${
+                    tx.status === "completed"
+                      ? "text-success"
+                      : tx.status === "pending"
+                      ? "text-warning"
+                      : "text-destructive"
+                  }`}
+                >
                   {tx.status}
                 </div>
               </div>

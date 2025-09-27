@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ConnectWallet } from "@/components/ui/ConnectWallet";
 import { Menu, X, Wallet } from "lucide-react";
 
 const navigation = [
@@ -48,14 +49,9 @@ export function Header() {
 
         {/* Wallet Connect Button */}
         <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden md:flex items-center space-x-2"
-          >
-            <Wallet className="h-4 w-4" />
-            <span>Connect Wallet</span>
-          </Button>
+          <div className="hidden md:flex">
+            <ConnectWallet />
+          </div>
 
           {/* Mobile menu button */}
           <Button
@@ -91,14 +87,9 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center space-x-2 justify-center"
-            >
-              <Wallet className="h-4 w-4" />
-              <span>Connect Wallet</span>
-            </Button>
+            <div className="flex justify-center">
+              <ConnectWallet />
+            </div>
           </nav>
         </div>
       )}

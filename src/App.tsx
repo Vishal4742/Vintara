@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { WalletProvider } from "@/components/providers/WalletProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { TransactionProvider } from "@/components/providers/TransactionProvider";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Swap from "./pages/Swap";
@@ -17,25 +18,27 @@ import NotFound from "./pages/NotFound";
 const App = () => (
   <ThemeProvider defaultTheme="dark" storageKey="vintara-ui-theme">
     <WalletProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/swap" element={<Swap />} />
-              <Route path="/liquidity" element={<Liquidity />} />
-              <Route path="/lending" element={<Lending />} />
-              <Route path="/yield" element={<Yield />} />
-              <Route path="/analytics" element={<Analytics />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
-        </BrowserRouter>
-      </TooltipProvider>
+      <TransactionProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/swap" element={<Swap />} />
+                <Route path="/liquidity" element={<Liquidity />} />
+                <Route path="/lending" element={<Lending />} />
+                <Route path="/yield" element={<Yield />} />
+                <Route path="/analytics" element={<Analytics />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          </BrowserRouter>
+        </TooltipProvider>
+      </TransactionProvider>
     </WalletProvider>
   </ThemeProvider>
 );

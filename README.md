@@ -17,6 +17,7 @@ Vintara is a revolutionary DeFi protocol built on Rootstock (RSK), Bitcoin's lon
 
 ## Architecture
 
+```mermaid
 flowchart TD
     subgraph App["Application Layer"]
         direction TB
@@ -97,6 +98,7 @@ flowchart TD
     %% Styling
     classDef default stroke:#000,stroke-width:1px
     class App,Serv,Proto,Net,Data,Hard default
+```
 
 ### Smart Contracts
 

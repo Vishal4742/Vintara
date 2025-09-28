@@ -1,32 +1,32 @@
 # Vintara - Project Summary
 
-## 🎯 Hackathon Submission Overview
+## Hackathon Submission Overview
 
 **Project Name**: Vintara - Native Bitcoin DeFi Protocol on Rootstock  
 **Track**: Everyday DeFi  
 **Prize**: $2,000 (up to 2 teams)  
 **Platform**: Rootstock (RSK) - Bitcoin's longest-running sidechain
 
-## ✅ Requirements Met
+## Requirements Met
 
 ### Technical Requirements
 
-- ✅ **Smart contracts deployed on Rootstock testnet**
-- ✅ **Minimum 2 successful on-chain transactions**
-- ✅ **EVM-compatible Solidity code**
-- ✅ **Integration with Rootstock infrastructure**
+- **Smart contracts deployed on Rootstock testnet**
+- **Minimum 2 successful on-chain transactions**
+- **EVM-compatible Solidity code**
+- **Integration with Rootstock infrastructure**
 
 ### Documentation Requirements
 
-- ✅ **GitHub repository with descriptive README**
-- ✅ **One-sentence project description**
-- ✅ **Integration details with Rootstock**
-- ✅ **Team background information**
-- ✅ **Testing instructions**
-- ✅ **Development experience feedback**
-- ✅ **Video demo or slide deck**
+- **GitHub repository with descriptive README**
+- **One-sentence project description**
+- **Integration details with Rootstock**
+- **Team background information**
+- **Testing instructions**
+- **Development experience feedback**
+- **Video demo or slide deck**
 
-## 🏗️ What We Built
+## What We Built
 
 ### Smart Contracts (6 Core Contracts)
 
@@ -54,7 +54,7 @@
 - **DAO Governance**: Community-driven protocol governance
 - **Analytics Dashboard**: Comprehensive protocol metrics
 
-## 🔧 Technical Architecture
+## Technical Architecture
 
 ### Smart Contract Stack
 
@@ -80,7 +80,7 @@
 - **Low Transaction Costs**: Significantly lower fees than Ethereum
 - **Fast Finality**: Quick transaction confirmation
 
-## 📊 Protocol Metrics
+## Protocol Metrics
 
 - **Total Value Locked**: $47.2M
 - **Average APY**: 42.3%
@@ -88,22 +88,22 @@
 - **Total Volume**: $125.4M
 - **Security**: 100% Bitcoin hash power protection
 
-## 🚀 Deployment Status
+## Deployment Status
 
 ### Testnet Deployment
 
-- ✅ **Contracts deployed** to Rootstock testnet
-- ✅ **Frontend deployed** to Vercel
-- ✅ **Testing completed** with sample transactions
-- ✅ **Documentation** comprehensive and complete
+- **Contracts deployed** to Rootstock testnet
+- **Frontend deployed** to Vercel
+- **Testing completed** with sample transactions
+- **Documentation** comprehensive and complete
 
 ### Ready for Mainnet
 
-- 🔄 **Security audit** planned
-- 🔄 **Community testing** in progress
-- 🔄 **Governance setup** ready
+- **Security audit** planned
+- **Community testing** in progress
+- **Governance setup** ready
 
-## 🎥 Demo Features
+## Demo Features
 
 ### Live Demo (4-5 minutes)
 
@@ -117,7 +117,7 @@
    - Display analytics dashboard
 3. **Conclusion** (30s): Key innovations and benefits
 
-## 🏆 Why Vintara Deserves to Win
+## Why Vintara Deserves to Win
 
 ### Innovation
 
@@ -147,37 +147,37 @@
 - **User-friendly** interface
 - **Educational resources** included
 
-## 🔮 Future Roadmap
+## Future Roadmap
 
 ### Phase 1: Core Protocol (Completed)
 
-- ✅ Smart contract development and deployment
-- ✅ Frontend interface development
-- ✅ Basic yield generation mechanisms
-- ✅ Lending and borrowing functionality
+- Smart contract development and deployment
+- Frontend interface development
+- Basic yield generation mechanisms
+- Lending and borrowing functionality
 
 ### Phase 2: Advanced Features (In Progress)
 
-- 🔄 Advanced yield optimization strategies
-- 🔄 Cross-chain bridge integration
-- 🔄 Mobile application development
-- 🔄 Enhanced analytics and reporting
+- Advanced yield optimization strategies
+- Cross-chain bridge integration
+- Mobile application development
+- Enhanced analytics and reporting
 
 ### Phase 3: Ecosystem Expansion (Planned)
 
-- 📋 Integration with other Bitcoin L2s
-- 📋 Institutional DeFi products
-- 📋 Advanced risk management tools
-- 📋 Community governance features
+- Integration with other Bitcoin L2s
+- Institutional DeFi products
+- Advanced risk management tools
+- Community governance features
 
-## 📞 Contact & Resources
+## Contact & Resources
 
 - **Website**: [https://vintara.vercel.app](https://vintara.vercel.app)
-- **GitHub**: [https://github.com/your-username/vintara](https://github.com/your-username/vintara)
+- **GitHub**: [https://github.com/aniketsahu115/vintara](https://github.com/aniketsahu115/vintara)
 - **Documentation**: [README.md](README.md)
 - **Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Rootstock team** for building the most secure Bitcoin sidechain
 - **OpenZeppelin** for providing secure smart contract libraries

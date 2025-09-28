@@ -1,6 +1,7 @@
 # Vintara - Native Bitcoin DeFi Protocol on Rootstock
+A comprehensive DeFi protocol that enables users to earn native Bitcoin yield through automated lending, liquidity provision, and yield farming strategies on Rootstock.
 
-> **One-sentence description**: A comprehensive DeFi protocol that enables users to earn native Bitcoin yield through automated lending, liquidity provision, and yield farming strategies on Rootstock.
+[landing page](https://github.com/aniketsahu115/Vintara/blob/main/assets/landing%20page.png)
 
 ## Project Overview
 

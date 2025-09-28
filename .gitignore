@@ -48,3 +48,15 @@ RSK_SETUP.md
 SETUP_GUIDE.md
 SIMPLE_DEPLOYMENT_GUIDE.md
 WALLET_INTEGRATION_FIX.md
+
+# Pitch and presentation files (local only)
+*PITCH*.md
+*PRESENTATION*.md
+pitch-*.md
+presentation-*.md
+PITCH_*.md
+PRESENTATION_*.md
+slides/
+presentations/
+pitch-deck/
+demo-videos/

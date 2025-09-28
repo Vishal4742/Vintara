@@ -112,6 +112,16 @@ Our protocol consists of 6 core smart contracts deployed on Rootstock:
 5. **PriceOracle.sol** - Price feeds integration with fallback mechanisms
 6. **Governance.sol** - DAO governance for protocol parameters
 
+Mock TOken - 0xa370fefb8e3c32645bf20885fb9020d9d01fdbc8
+ChainLink Oracle - 0xc38d69d593229a0d11853b31394acf8d955dca5e
+GraphIndexer - 0xc89a1a228d894f6335b9bcc0c6cabd19159a1b32
+PriceOracle - 0xbf08c62e99318962a2627ef5f438ca07dff3aa11
+YieldVault - 0x4f6febf3ba832e8d9ba86ee6f6c641c809f304b4
+Lending Protocol - 0xf2676d5013e59c28d060194190164cb0571c4094
+Liquidity Pool - 0x324c91c047f8f4fd22418fa6254e281321f3fa3d
+YieldFarming - 0x078cf9a4b1e7b184d7dfcd8d082772ab164af9e1
+Governance - 0x81d9fe2436a092387b9934e889a33663674c614e
+
 ### Technology Stack
 
 - **Blockchain**: Rootstock (RSK) Testnet
